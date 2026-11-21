@@ -34,17 +34,19 @@ class GrokBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self.started_at = time.time()
 
+    
     async def setup_hook(self):
-    print("GROK BOT: Registering slash commands...")
+        print("GROK BOT: Registering slash commands...")
 
-    synced = await self.tree.sync()
+        synced = await self.tree.sync()
 
-    print("GROK BOT: Command synchronization complete.")
-    print(f"Registered {len(synced)} slash commands.")
+        print("GROK BOT: Command synchronization complete.")
+        print(f"Registered {len(synced)} slash commands.")
 
-    if not btc_updates.is_running():
-        btc_updates.start()
-        print("GROK BOT: Automatic BTC updates started.")
+        if not btc_updates.is_running():
+            btc_updates.start()
+            print("GROK BOT: Automatic BTC updates started.")
+
 
 bot = GrokBot()
 
