@@ -227,7 +227,14 @@ def kalshi_price(market, side, price_type):
 async def kalshi(interaction: discord.Interaction):
     await interaction.response.defer()
 
-        try:
+@bot.tree.command(
+    name="kalshi",
+    description="View live Kalshi BTC 15-minute markets"
+)
+async def kalshi(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    try:
         markets = await asyncio.to_thread(get_kalshi_markets)
 
         if not markets:
