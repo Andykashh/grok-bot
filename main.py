@@ -513,29 +513,7 @@ def classify_reversal(rev15, rev5, trend1):
 
     return "NO STRONG REVERSAL SIGNAL"
 
-@tasks.loop(minutes=15)
-async def btc_updates():
-    if not CHANNEL_ID:
-        return
 
-    try:
-        channel = bot.get_channel(int(CHANNEL_ID))
-
-        if channel is None:
-            return
-
-        price = await __import__("asyncio").to_thread(
-            get_btc_price
-        )
-
-        await channel.send(
-            f"**GROK BOT | 15-MINUTE UPDATE**\n"
-            f"BTC Spot Price: **${price:,.2f}**\n"
-            f"Timestamp: <t:{int(time.time())}:F>"
-        )
-
-    except Exception as error:
-        print(f"BTC update error: {error}")
 
 
 if not TOKEN:
