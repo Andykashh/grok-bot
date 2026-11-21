@@ -42,9 +42,13 @@ class GrokBot(discord.Client):
 bot = GrokBot()
 
 
-@bot.tree.command(name="btc", description="Get the latest Bitcoin spot price")
+
+@bot.tree.command(
+    name="btc",
+    description="Get the latest Bitcoin spot price"
+)
 async def btc(interaction: discord.Interaction):
-        await interaction.response.defer()
+    await interaction.response.defer()
 
     try:
         price = await asyncio.to_thread(get_btc_price)
@@ -65,6 +69,7 @@ async def btc(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed)
 
     except Exception as error:
+        print(f"BTC command error: {error}")
         await interaction.followup.send(
             f"Unable to retrieve BTC data: {error}"
         )
