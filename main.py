@@ -41,8 +41,6 @@ class GrokBot(discord.Client):
 
 bot = GrokBot()
 
-
-
 @bot.tree.command(
     name="btc",
     description="Get the latest Bitcoin spot price"
@@ -218,14 +216,6 @@ def kalshi_price(market, side, price_type):
         return float(market[cents_key]) / 100
 
     return None
-
-
-@bot.tree.command(
-    name="kalshi",
-    description="View live Kalshi BTC 15-minute markets"
-)
-async def kalshi(interaction: discord.Interaction):
-    await interaction.response.defer()
 
 @bot.tree.command(
     name="kalshi",
