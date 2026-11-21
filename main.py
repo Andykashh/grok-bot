@@ -1,4 +1,4 @@
-
+.
 import os
 import time
 import urllib.request
@@ -286,6 +286,231 @@ async def kalshi_history(interaction: discord.Interaction):
         await interaction.followup.send(
             f"Unable to retrieve Kalshi history: {error}"
         )
+
+def get_btc_candles(granularity, count):
+    end_time = int(time.time())
+    start_time = end_time - (granularity * count)
+
+    start = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ", time.gmtime(start_time)
+    )
+    end = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ", time.gmtime(end_time)
+    )
+
+    url = (
+        "https://api.exchange.coinbase.com/"
+        "products/BTC-USD/candles"
+        f"?granularity={granularity}"
+        f"&start={start}&end={end}"
+    )
+
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "GrokBot/1.0"}
+    )
+
+    with urllib.request.urlopen(request, timeout=15) as response:
+        raw = json.loads(response.read())
+
+    candles = [
+        {
+            "time": row[0],
+            "low": float(row[1]),
+            "high": float(row[2]),
+            "open": float(row[3]),
+            "close": float(row[4]),
+            "volume": float(row[5])
+        }
+        for row in raw
+    ]
+
+    return sorted(candles, key=lambda x: x["time"])
+
+
+def calculate_ema(values, period):
+    if len(values) < period:
+        return None
+
+    multiplier = 2 / (period + 1)
+    result = sum(values[:period]) / period
+
+    for value in values[period:]:
+        result = (value * multiplier) + (
+            result * (1 - multiplier)
+        )
+
+    return result
+
+
+def calculate_rsi(values, period=14):
+    if len(values) <= period:
+        return None
+
+    changes = [
+        values[i] - values[i - 1]
+        for i in range(1, len(values))
+    ]
+
+    gains = [max(change, 0) for change in changes]
+    losses = [max(-change, 0) for change in changes]
+
+    average_gain = sum(gains[-period:]) / period
+    average_loss = sum(losses[-period:]) / period
+
+    if average_loss == 0:
+        return 100.0
+
+    rs = average_gain / average_loss
+    return 100 - (100 / (1 + rs))
+
+
+def analyze_timeframe(candles):
+    if len(candles) < 51:
+        raise ValueError("Not enough candles for analysis.")
+
+    closes = [c["close"] for c in candles]
+
+    ema20 = calculate_ema(closes, 20)
+    ema50 = calculate_ema(closes, 50)
+    rsi = calculate_rsi(closes)
+
+    price = closes[-1]
+
+    if price > ema20 > ema50:
+        trend = "BULLISH"
+    elif price < ema20 < ema50:
+        trend = "BEARISH"
+    else:
+        trend = "NEUTRAL"
+
+    return {
+        "price": price,
+        "ema20": ema20,
+        "ema50": ema50,
+        "rsi": rsi,
+        "trend": trend
+    }
+
+
+def detect_reversal(candles):
+    if len(candles) < 30:
+        return {
+            "bull": 0,
+            "bear": 0,
+            "signals": ["Insufficient data"]
+        }
+
+    closes = [c["close"] for c in candles]
+    rsi = calculate_rsi(closes)
+
+    bull = 0
+    bear = 0
+    signals = []
+
+    previous = candles[-2]
+    current = candles[-1]
+
+    # Bullish engulfing
+    if (
+        previous["close"] < previous["open"]
+        and current["close"] > current["open"]
+        and current["open"] <= previous["close"]
+        and current["close"] >= previous["open"]
+    ):
+        bull += 1
+        signals.append("Bullish engulfing")
+
+    # Bearish engulfing
+    if (
+        previous["close"] > previous["open"]
+        and current["close"] < current["open"]
+        and current["open"] >= previous["close"]
+        and current["close"] <= previous["open"]
+    ):
+        bear += 1
+        signals.append("Bearish engulfing")
+
+    # RSI momentum changes
+    previous_rsi = calculate_rsi(closes[:-1])
+
+    if previous_rsi is not None and rsi is not None:
+        if previous_rsi < 40 and rsi > previous_rsi:
+            bull += 1
+            signals.append("Bullish RSI recovery")
+
+        if previous_rsi > 60 and rsi < previous_rsi:
+            bear += 1
+            signals.append("Bearish RSI weakening")
+
+    # EMA20 crossover
+    previous_ema = calculate_ema(closes[:-1], 20)
+    current_ema = calculate_ema(closes, 20)
+
+    if previous_ema is not None and current_ema is not None:
+        if closes[-2] <= previous_ema and closes[-1] > current_ema:
+            bull += 1
+            signals.append("Bullish EMA20 crossover")
+
+        if closes[-2] >= previous_ema and closes[-1] < current_ema:
+            bear += 1
+            signals.append("Bearish EMA20 crossover")
+
+    # RSI divergence using two recent swing windows
+    if rsi is not None:
+        older = candles[-12:-6]
+        recent = candles[-6:]
+
+        older_low = min(older, key=lambda c: c["low"])
+        recent_low = min(recent, key=lambda c: c["low"])
+
+        older_high = max(older, key=lambda c: c["high"])
+        recent_high = max(recent, key=lambda c: c["high"])
+
+        if (
+            recent_low["low"] < older_low["low"]
+            and recent_low["time"] > older_low["time"]
+        ):
+            bull += 1
+            signals.append("Potential bullish price divergence")
+
+        if (
+            recent_high["high"] > older_high["high"]
+            and recent_high["time"] > older_high["time"]
+        ):
+            bear += 1
+            signals.append("Potential bearish price divergence")
+
+    return {
+        "bull": bull,
+        "bear": bear,
+        "signals": signals
+    }
+
+
+def classify_reversal(rev15, rev5, trend1):
+    bull = rev15["bull"] + rev5["bull"]
+    bear = rev15["bear"] + rev5["bear"]
+
+    if bull >= 3 and rev15["bull"] > 0 and rev5["bull"] > 0:
+        if trend1 == "BULLISH":
+            return "CONFIRMED BULLISH REVERSAL"
+
+        return "POTENTIAL BULLISH REVERSAL"
+
+    if bear >= 3 and rev15["bear"] > 0 and rev5["bear"] > 0:
+        if trend1 == "BEARISH":
+            return "CONFIRMED BEARISH REVERSAL"
+
+        return "POTENTIAL BEARISH REVERSAL"
+
+    if bull >= 2 and bull > bear:
+        return "POTENTIAL BULLISH REVERSAL"
+
+    if bear >= 2 and bear > bull:
+        return "POTENTIAL BEARISH REVERSAL"
+
+    return "NO STRONG REVERSAL SIGNAL"
 
 @tasks.loop(minutes=15)
 async def btc_updates():
