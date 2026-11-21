@@ -170,6 +170,123 @@ async def kalshi(interaction: discord.Interaction):
             f"Unable to retrieve Kalshi markets: {error}"
         )
 
+@bot.tree.command(
+    name="kalshi_history",
+    description="View historical prices for the active Kalshi BTC market"
+)
+async def kalshi_history(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    try:
+        markets = await __import__("asyncio").to_thread(
+            get_kalshi_markets
+        )
+
+        if not markets:
+            await interaction.followup.send(
+                "No open Kalshi BTC markets found."
+            )
+            return
+
+        market = markets[0]
+        ticker = market.get("ticker")
+
+        if not ticker:
+            await interaction.followup.send(
+                "Unable to find the market ticker."
+            )
+            return
+
+        end_ts = int(time.time())
+        start_ts = end_ts - 15 * 60
+
+        url = (
+            "https://external-api.kalshi.com/trade-api/v2/"
+            f"series/KXBTC15M/markets/{ticker}/candlesticks"
+            f"?start_ts={start_ts}"
+            f"&end_ts={end_ts}"
+            "&period_interval=1"
+        )
+
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "GrokBot/1.0"}
+        )
+
+        def fetch_history():
+            with urllib.request.urlopen(
+                request, timeout=15
+            ) as response:
+                return json.loads(response.read())
+
+        data = await __import__("asyncio").to_thread(
+            fetch_history
+        )
+
+        candles = data.get("candlesticks", [])
+
+        if not candles:
+            await interaction.followup.send(
+                "No historical candles available yet."
+            )
+            return
+
+        embed = discord.Embed(
+            title="GROK BOT | KALSHI BTC HISTORY",
+            description=(
+                f"**Market:** `{ticker}`\n"
+                "**Period:** Last 15 minutes\n"
+                "**Interval:** 1 minute"
+            ),
+            color=discord.Color.blue()
+        )
+
+        for candle in candles[-15:]:
+            timestamp = candle.get("end_period_ts")
+
+            price_data = candle.get("price") or {}
+            bid_data = candle.get("yes_bid") or {}
+            ask_data = candle.get("yes_ask") or {}
+
+            last_price = price_data.get("close_dollars")
+            yes_bid = bid_data.get("close_dollars")
+            yes_ask = ask_data.get("close_dollars")
+
+            if timestamp is None:
+                continue
+
+            timestamp_text = (
+                f"<t:{int(timestamp)}:t>"
+            )
+
+            def show_price(value):
+                if value is None:
+                    return "N/A"
+                return f"${float(value):.2f}"
+
+            embed.add_field(
+                name=f"Time: {timestamp_text}",
+                value=(
+                    f"YES Price: {show_price(last_price)}\n"
+                    f"YES Bid: {show_price(yes_bid)}\n"
+                    f"YES Ask: {show_price(yes_ask)}"
+                ),
+                inline=True
+            )
+
+        embed.set_footer(
+            text="Kalshi historical market data | Informational only"
+        )
+
+        await interaction.followup.send(embed=embed)
+
+    except Exception as error:
+        print(f"Kalshi history error: {error}")
+
+        await interaction.followup.send(
+            f"Unable to retrieve Kalshi history: {error}"
+        )
+
 @tasks.loop(minutes=15)
 async def btc_updates():
     if not CHANNEL_ID:
