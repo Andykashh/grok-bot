@@ -3,6 +3,7 @@ import os
 import time
 import urllib.request
 import json
+import asyncio
 
 import discord
 from discord import app_commands
