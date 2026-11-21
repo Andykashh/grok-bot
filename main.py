@@ -457,9 +457,10 @@ def calculate_ema(values, period):
     return result
 
 
-def calculate_rsi(values, period=14):
+
+def calculate_rsi_series(values, period=14):
     if len(values) <= period:
-        return None
+        return [None] * len(values)
 
     changes = [
         values[i] - values[i - 1]
@@ -469,14 +470,36 @@ def calculate_rsi(values, period=14):
     gains = [max(change, 0) for change in changes]
     losses = [max(-change, 0) for change in changes]
 
-    average_gain = sum(gains[-period:]) / period
-    average_loss = sum(losses[-period:]) / period
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
 
-    if average_loss == 0:
-        return 100.0
+    result = [None] * period
 
-    rs = average_gain / average_loss
-    return 100 - (100 / (1 + rs))
+    def get_rsi(gain, loss):
+        if loss == 0:
+            return 100.0
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
+
+    result.append(get_rsi(avg_gain, avg_loss))
+
+    for i in range(period, len(changes)):
+        avg_gain = (
+            avg_gain * (period - 1) + gains[i]
+        ) / period
+
+        avg_loss = (
+            avg_loss * (period - 1) + losses[i]
+        ) / period
+
+        result.append(get_rsi(avg_gain, avg_loss))
+
+    return result
+
+
+def calculate_rsi(values, period=14):
+    result = calculate_rsi_series(values, period)
+    return result[-1]
 
 
 def analyze_timeframe(candles):
@@ -507,6 +530,7 @@ def analyze_timeframe(candles):
     }
 
 
+
 def detect_reversal(candles):
     if len(candles) < 30:
         return {
@@ -516,7 +540,7 @@ def detect_reversal(candles):
         }
 
     closes = [c["close"] for c in candles]
-    rsi = calculate_rsi(closes)
+    rsi_values = calculate_rsi_series(closes)
 
     bull = 0
     bear = 0
@@ -546,14 +570,15 @@ def detect_reversal(candles):
         signals.append("Bearish engulfing")
 
     # RSI momentum changes
-    previous_rsi = calculate_rsi(closes[:-1])
+    previous_rsi = rsi_values[-2]
+    current_rsi = rsi_values[-1]
 
-    if previous_rsi is not None and rsi is not None:
-        if previous_rsi < 40 and rsi > previous_rsi:
+    if previous_rsi is not None and current_rsi is not None:
+        if previous_rsi < 40 and current_rsi > previous_rsi:
             bull += 1
             signals.append("Bullish RSI recovery")
 
-        if previous_rsi > 60 and rsi < previous_rsi:
+        if previous_rsi > 60 and current_rsi < previous_rsi:
             bear += 1
             signals.append("Bearish RSI weakening")
 
@@ -570,36 +595,65 @@ def detect_reversal(candles):
             bear += 1
             signals.append("Bearish EMA20 crossover")
 
-    # RSI divergence using two recent swing windows
-    if rsi is not None:
-        older = candles[-12:-6]
-        recent = candles[-6:]
+    # Actual RSI divergence
+    older_start = len(candles) - 12
+    recent_start = len(candles) - 6
 
-        older_low = min(older, key=lambda c: c["low"])
-        recent_low = min(recent, key=lambda c: c["low"])
+    older = candles[older_start:recent_start]
+    recent = candles[recent_start:]
 
-        older_high = max(older, key=lambda c: c["high"])
-        recent_high = max(recent, key=lambda c: c["high"])
+    older_low_index = min(
+        range(older_start, recent_start),
+        key=lambda i: candles[i]["low"]
+    )
 
-        if (
-            recent_low["low"] < older_low["low"]
-            and recent_low["time"] > older_low["time"]
-        ):
-            bull += 1
-            signals.append("Potential bullish price divergence")
+    recent_low_index = min(
+        range(recent_start, len(candles)),
+        key=lambda i: candles[i]["low"]
+    )
 
-        if (
-            recent_high["high"] > older_high["high"]
-            and recent_high["time"] > older_high["time"]
-        ):
-            bear += 1
-            signals.append("Potential bearish price divergence")
+    older_high_index = max(
+        range(older_start, recent_start),
+        key=lambda i: candles[i]["high"]
+    )
+
+    recent_high_index = max(
+        range(recent_start, len(candles)),
+        key=lambda i: candles[i]["high"]
+    )
+
+    # Bullish divergence:
+    # Price makes a lower low, RSI makes a higher low.
+    if (
+        candles[recent_low_index]["low"]
+        < candles[older_low_index]["low"]
+        and rsi_values[recent_low_index] is not None
+        and rsi_values[older_low_index] is not None
+        and rsi_values[recent_low_index]
+        > rsi_values[older_low_index]
+    ):
+        bull += 1
+        signals.append("Bullish RSI divergence")
+
+    # Bearish divergence:
+    # Price makes a higher high, RSI makes a lower high.
+    if (
+        candles[recent_high_index]["high"]
+        > candles[older_high_index]["high"]
+        and rsi_values[recent_high_index] is not None
+        and rsi_values[older_high_index] is not None
+        and rsi_values[recent_high_index]
+        < rsi_values[older_high_index]
+    ):
+        bear += 1
+        signals.append("Bearish RSI divergence")
 
     return {
         "bull": bull,
         "bear": bear,
         "signals": signals
     }
+
 
 
 def classify_reversal(rev15, rev5, trend1):
