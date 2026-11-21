@@ -514,6 +514,154 @@ def classify_reversal(rev15, rev5, trend1):
     return "NO STRONG REVERSAL SIGNAL"
 
 
+@tasks.loop(minutes=15)
+async def btc_updates():
+    if not CHANNEL_ID:
+        return
+
+    try:
+        channel = bot.get_channel(int(CHANNEL_ID))
+
+        if channel is None:
+            print("BTC update error: Discord channel not found.")
+            return
+
+        # Fetch BTC price and both candle timeframes
+        price, candles5, candles15 = await asyncio.gather(
+            asyncio.to_thread(get_btc_price),
+            asyncio.to_thread(get_btc_candles, 300, 100),
+            asyncio.to_thread(get_btc_candles, 900, 100)
+        )
+
+        # Analyze both timeframes
+        analysis5 = analyze_timeframe(candles5)
+        analysis15 = analyze_timeframe(candles15)
+
+        # Detect reversal signals
+        reversal5 = detect_reversal(candles5)
+        reversal15 = detect_reversal(candles15)
+
+        # Determine overall reversal classification
+        reversal = classify_reversal(
+            reversal15,
+            reversal5,
+            analysis15["trend"]
+        )
+
+        # Determine overall market direction
+        if (
+            analysis5["trend"] == "BULLISH"
+            and analysis15["trend"] == "BULLISH"
+        ):
+            market = "BULLISH"
+            color = discord.Color.green()
+
+        elif (
+            analysis5["trend"] == "BEARISH"
+            and analysis15["trend"] == "BEARISH"
+        ):
+            market = "BEARISH"
+            color = discord.Color.red()
+
+        else:
+            market = "MIXED / NEUTRAL"
+            color = discord.Color.orange()
+
+        # Build Discord embed
+        embed = discord.Embed(
+            title="GROK BOT | BTC MARKET ANALYSIS",
+            description=(
+                f"**Bitcoin Spot Price:** ${price:,.2f}\n"
+                f"**Market Direction:** {market}"
+            ),
+            color=color
+        )
+
+        # 5-minute analysis
+        embed.add_field(
+            name="5-Minute Technical Analysis",
+            value=(
+                f"Trend: **{analysis5['trend']}**\n"
+                f"EMA20: ${analysis5['ema20']:,.2f}\n"
+                f"EMA50: ${analysis5['ema50']:,.2f}\n"
+                f"RSI: **{analysis5['rsi']:.2f}**"
+            ),
+            inline=True
+        )
+
+        # 15-minute analysis
+        embed.add_field(
+            name="15-Minute Technical Analysis",
+            value=(
+                f"Trend: **{analysis15['trend']}**\n"
+                f"EMA20: ${analysis15['ema20']:,.2f}\n"
+                f"EMA50: ${analysis15['ema50']:,.2f}\n"
+                f"RSI: **{analysis15['rsi']:.2f}**"
+            ),
+            inline=True
+        )
+
+        # Reversal classification
+        embed.add_field(
+            name="Reversal Analysis",
+            value=f"**{reversal}**",
+            inline=False
+        )
+
+        # Combine detected signals
+        signals = []
+
+        for signal in reversal5["signals"]:
+            if signal != "Insufficient data":
+                signals.append(f"5M: {signal}")
+
+        for signal in reversal15["signals"]:
+            if signal != "Insufficient data":
+                signals.append(f"15M: {signal}")
+
+        signals = list(dict.fromkeys(signals))
+
+        embed.add_field(
+            name="Detected Signals",
+            value=(
+                "\n".join(signals)
+                if signals
+                else "No significant reversal signals detected."
+            ),
+            inline=False
+        )
+
+        # RSI interpretation
+        rsi5 = analysis5["rsi"]
+        rsi15 = analysis15["rsi"]
+
+        embed.add_field(
+            name="RSI Momentum",
+            value=(
+                f"5M: {'Overbought' if rsi5 >= 70 else 'Oversold' if rsi5 <= 30 else 'Neutral'}\n"
+                f"15M: {'Overbought' if rsi15 >= 70 else 'Oversold' if rsi15 <= 30 else 'Neutral'}"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(
+            text="GROK BOT | Technical Analysis | Informational Only"
+        )
+
+        embed.timestamp = discord.utils.utcnow()
+
+        await channel.send(embed=embed)
+
+        print("BTC technical-analysis update successfully posted.")
+
+    except Exception as error:
+        print(f"BTC update error: {error}")
+
+
+@btc_updates.before_loop
+async def before_btc_updates():
+    await bot.wait_until_ready()
+
 
 
 if not TOKEN:
