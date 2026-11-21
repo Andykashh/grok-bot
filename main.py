@@ -227,8 +227,8 @@ def kalshi_price(market, side, price_type):
 async def kalshi(interaction: discord.Interaction):
     await interaction.response.defer()
 
-    try:
-     markets = await asyncio.to_thread(get_kalshi_markets)
+        try:
+        markets = await asyncio.to_thread(get_kalshi_markets)
 
         if not markets:
             await interaction.followup.send(
