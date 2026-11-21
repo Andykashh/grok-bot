@@ -46,7 +46,6 @@ class GrokBot(discord.Client):
         btc_updates.start()
         print("GROK BOT: Automatic BTC updates started.")
 
-
 bot = GrokBot()
 
 @bot.tree.command(
