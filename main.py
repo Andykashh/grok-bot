@@ -47,6 +47,112 @@ bot = GrokBot()
 async def btc(interaction: discord.Interaction):
     await interaction.response.defer()
 
+@bot.tree.command(
+    name="btcanalysis",
+    description="Get full Bitcoin technical analysis"
+)
+async def btcanalysis(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    try:
+        price, candles5, candles15 = await asyncio.gather(
+            asyncio.to_thread(get_btc_price),
+            asyncio.to_thread(get_btc_candles, 300, 100),
+            asyncio.to_thread(get_btc_candles, 900, 100)
+        )
+
+        analysis5 = analyze_timeframe(candles5)
+        analysis15 = analyze_timeframe(candles15)
+
+        reversal5 = detect_reversal(candles5)
+        reversal15 = detect_reversal(candles15)
+
+        reversal = classify_reversal(
+            reversal15,
+            reversal5,
+            analysis15["trend"]
+        )
+
+        if (
+            analysis5["trend"] == "BULLISH"
+            and analysis15["trend"] == "BULLISH"
+        ):
+            market = "BULLISH"
+            color = discord.Color.green()
+        elif (
+            analysis5["trend"] == "BEARISH"
+            and analysis15["trend"] == "BEARISH"
+        ):
+            market = "BEARISH"
+            color = discord.Color.red()
+        else:
+            market = "MIXED / NEUTRAL"
+            color = discord.Color.orange()
+
+        embed = discord.Embed(
+            title="GROK BOT | BTC MARKET ANALYSIS",
+            description=(
+                f"BTC Spot Price: **${price:,.2f}**\n"
+                f"Overall Direction: **{market}**"
+            ),
+            color=color
+        )
+
+        embed.add_field(
+            name="5-Minute Analysis",
+            value=(
+                f"Trend: **{analysis5['trend']}**\n"
+                f"EMA20: ${analysis5['ema20']:,.2f}\n"
+                f"EMA50: ${analysis5['ema50']:,.2f}\n"
+                f"RSI: {analysis5['rsi']:.2f}"
+            ),
+            inline=True
+        )
+
+        embed.add_field(
+            name="15-Minute Analysis",
+            value=(
+                f"Trend: **{analysis15['trend']}**\n"
+                f"EMA20: ${analysis15['ema20']:,.2f}\n"
+                f"EMA50: ${analysis15['ema50']:,.2f}\n"
+                f"RSI: {analysis15['rsi']:.2f}"
+            ),
+            inline=True
+        )
+
+        embed.add_field(
+            name="Reversal Analysis",
+            value=f"**{reversal}**",
+            inline=False
+        )
+
+        signals = (
+            [f"5M: {s}" for s in reversal5["signals"]
+             if s != "Insufficient data"]
+            +
+            [f"15M: {s}" for s in reversal15["signals"]
+             if s != "Insufficient data"]
+        )
+
+        embed.add_field(
+            name="Detected Signals",
+            value="\n".join(dict.fromkeys(signals))
+            if signals else "No significant signals detected.",
+            inline=False
+        )
+
+        embed.set_footer(
+            text="GROK BOT | Informational Only"
+        )
+
+        await interaction.followup.send(embed=embed)
+
+    except Exception as error:
+        print(f"BTC analysis command error: {error}")
+        await interaction.followup.send(
+            f"Unable to complete BTC analysis: {error}"
+        )
+
     try:
         price = get_btc_price()
 
