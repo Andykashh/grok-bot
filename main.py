@@ -153,30 +153,6 @@ async def btcanalysis(interaction: discord.Interaction):
             f"Unable to complete BTC analysis: {error}"
         )
 
-    try:
-        price = get_btc_price()
-
-        embed = discord.Embed(
-            title="GROK BOT | BTC MONITOR",
-            color=discord.Color.blue()
-        )
-
-        embed.add_field(
-            name="Bitcoin Spot Price",
-            value=f"${price:,.2f}",
-            inline=False
-        )
-
-        embed.set_footer(text="Informational data only")
-
-        await interaction.followup.send(embed=embed)
-
-    except Exception as error:
-        await interaction.followup.send(
-            f"Unable to retrieve BTC data: {error}"
-        )
-
-
 @bot.tree.command(name="status", description="Check GROK BOT status")
 async def status(interaction: discord.Interaction):
     uptime = int(time.time() - bot.started_at)
@@ -225,9 +201,7 @@ async def kalshi(interaction: discord.Interaction):
     await interaction.response.defer()
 
     try:
-        markets = await __import__("asyncio").to_thread(
-            get_kalshi_markets
-        )
+     markets = await asyncio.to_thread(get_kalshi_markets)
 
         if not markets:
             await interaction.followup.send(
