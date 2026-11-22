@@ -906,6 +906,30 @@ def analyze_volume(candles, period=20):
         strength = "LOW"
 
 
+    if volume_ratio >= 2 and pressure == "BUYERS":
+        volume_signal = "VERY STRONG BUYING"
+
+    elif volume_ratio >= 2 and pressure == "SELLERS":
+        volume_signal = "VERY STRONG SELLING"
+
+    elif volume_ratio >= 1.5 and pressure == "BUYERS":
+        volume_signal = "STRONG BUYING"
+
+    elif volume_ratio >= 1.5 and pressure == "SELLERS":
+        volume_signal = "STRONG SELLING"
+
+    elif volume_ratio < 0.5:
+        volume_signal = "VERY LOW PARTICIPATION"
+
+    elif pressure == "BUYERS":
+        volume_signal = "BUYING PRESSURE"
+
+    elif pressure == "SELLERS":
+        volume_signal = "SELLING PRESSURE"
+
+    else:
+        volume_signal = "NEUTRAL VOLUME"
+
     
     return {
         "current_volume": current_volume,
@@ -920,6 +944,7 @@ def analyze_volume(candles, period=20):
         "buying_pressure": buying_pressure,
         "selling_pressure": selling_pressure,
         "pressure": pressure
+        "volume_signal": volume_signal
     }
 
 
