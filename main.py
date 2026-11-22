@@ -530,6 +530,70 @@ def analyze_timeframe(candles):
     }
 
 
+def confirm_timeframes(analysis5, analysis15):
+    trend5 = analysis5["trend"]
+    trend15 = analysis15["trend"]
+
+    rsi5 = analysis5["rsi"]
+    rsi15 = analysis15["rsi"]
+
+    # Determine overall trend alignment
+    if trend5 == "BULLISH" and trend15 == "BULLISH":
+        market = "BULLISH"
+        alignment = "BULLISH ALIGNMENT"
+        color = discord.Color.green()
+
+    elif trend5 == "BEARISH" and trend15 == "BEARISH":
+        market = "BEARISH"
+        alignment = "BEARISH ALIGNMENT"
+        color = discord.Color.red()
+
+    elif trend5 == "NEUTRAL" and trend15 == "NEUTRAL":
+        market = "NEUTRAL"
+        alignment = "NEUTRAL"
+        color = discord.Color.orange()
+
+    else:
+        market = "MIXED / NEUTRAL"
+        alignment = "TIMEFRAMES DISAGREE"
+        color = discord.Color.orange()
+
+    # Evaluate RSI momentum independently
+    if rsi5 > 50 and rsi15 > 50:
+        momentum = "BULLISH MOMENTUM"
+
+    elif rsi5 < 50 and rsi15 < 50:
+        momentum = "BEARISH MOMENTUM"
+
+    else:
+        momentum = "MIXED MOMENTUM"
+
+    # Determine whether momentum supports the trend
+    if market == "BULLISH":
+        confirmation = (
+            "FULL TREND + MOMENTUM SUPPORT"
+            if momentum == "BULLISH MOMENTUM"
+            else "TREND ALIGNED, MOMENTUM NOT CONFIRMED"
+        )
+
+    elif market == "BEARISH":
+        confirmation = (
+            "FULL TREND + MOMENTUM SUPPORT"
+            if momentum == "BEARISH MOMENTUM"
+            else "TREND ALIGNED, MOMENTUM NOT CONFIRMED"
+        )
+
+    else:
+        confirmation = "NO FULL TREND CONFIRMATION"
+
+    return {
+        "market": market,
+        "alignment": alignment,
+        "momentum": momentum,
+        "confirmation": confirmation,
+        "color": color
+    }
+
 
 def detect_reversal(candles):
     if len(candles) < 30:
@@ -715,24 +779,16 @@ async def btc_updates():
             analysis15["trend"]
         )
 
-        # Determine overall market direction
-        if (
-            analysis5["trend"] == "BULLISH"
-            and analysis15["trend"] == "BULLISH"
-        ):
-            market = "BULLISH"
-            color = discord.Color.green()
+        
+# Multi-timeframe trend confirmation
+confirmation = confirm_timeframes(
+    analysis5,
+    analysis15
+)
 
-        elif (
-            analysis5["trend"] == "BEARISH"
-            and analysis15["trend"] == "BEARISH"
-        ):
-            market = "BEARISH"
-            color = discord.Color.red()
+market = confirmation["market"]
+color = confirmation["color"]
 
-        else:
-            market = "MIXED / NEUTRAL"
-            color = discord.Color.orange()
 
         # Build Discord embed
         embed = discord.Embed(
@@ -766,6 +822,17 @@ async def btc_updates():
                 f"RSI: **{analysis15['rsi']:.2f}**"
             ),
             inline=True
+        )
+
+        # Multi-timeframe confirmation
+        embed.add_field(
+            name="Multi-Timeframe Confirmation",
+            value=(
+                f"**Alignment:** {confirmation['alignment']}\n"
+                f"**Momentum:** {confirmation['momentum']}\n"
+                f"**Assessment:** {confirmation['confirmation']}"
+            ),
+            inline=False
         )
 
         # Reversal classification
