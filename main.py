@@ -779,15 +779,15 @@ async def btc_updates():
             analysis15["trend"]
         )
 
-        
-# Multi-timeframe trend confirmation
-confirmation = confirm_timeframes(
-    analysis5,
-    analysis15
-)
 
-market = confirmation["market"]
-color = confirmation["color"]
+        # Multi-timeframe trend confirmation
+        confirmation = confirm_timeframes(
+            analysis5,
+            analysis15
+        )
+
+        market = confirmation["market"]
+        color = confirmation["color"]
 
 
         # Build Discord embed
