@@ -97,19 +97,19 @@ async def btcanalysis(interaction: discord.Interaction):
             asyncio.to_thread(get_btc_candles, 900, 100)
         )
 
-# Analyze both timeframes
-analysis5 = analyze_timeframe(candles5)
-analysis15 = analyze_timeframe(candles15)
+        # Analyze both timeframes
+        analysis5 = analyze_timeframe(candles5)
+        analysis15 = analyze_timeframe(candles15)
 
-# Analyze trading volume on both timeframes
-volume5 = analyze_volume(candles5)
-volume15 = analyze_volume(candles15)
+        # Analyze trading volume on both timeframes
+        volume5 = analyze_volume(candles5)
+        volume15 = analyze_volume(candles15)
 
-# Multi-timeframe confirmation
-confirmation = confirm_timeframes(
-    analysis5,
-    analysis15
-)
+        # Multi-timeframe confirmation
+        confirmation = confirm_timeframes(
+            analysis5,
+            analysis15
+        )
 
         market = confirmation["market"]
         color = confirmation["color"]
