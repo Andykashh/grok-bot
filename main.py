@@ -119,6 +119,8 @@ async def btcanalysis(interaction: discord.Interaction):
             candles5,
             analysis5,
             analysis15
+            volume5,
+            volume15
         )
 
         # Detect reversals
@@ -974,7 +976,7 @@ def analyze_volume(candles, period=20):
     }
 
 
-def generate_trade_signal(candles5, analysis5, analysis15):
+def generate_trade_signal(candles5, analysis5, analysis15, volume5, volume15):
 
     price = candles5[-1]["close"]
     atr = calculate_atr(candles5)
@@ -998,11 +1000,28 @@ def generate_trade_signal(candles5, analysis5, analysis15):
         if rsi15 > 50:
             confidence += 20
 
-        if 50 < rsi5 < 70:
-            confidence += 10
+            if 50 < rsi5 < 70:
+                confidence += 10
 
-        if confidence >= 70:
-            signal = "BUY"
+            # VOLUME CONFIRMATION
+            if (
+                volume5["volume_signal"] == "BUYING PRESSURE"
+                and volume15["volume_signal"] == "BUYING PRESSURE"
+            ):
+                confidence += 10
+            elif (
+                volume5["volume_signal"] == "SELLING PRESSURE"
+                or volume15["volume_signal"] == "SELLING PRESSURE"
+            ):
+                confidence -= 10
+            elif (
+                volume5["volume_signal"] == "BUYING PRESSURE"
+                or volume15["volume_signal"] == "BUYING PRESSURE"
+            ):
+                confidence += 5
+
+            if confidence >= 70:
+                signal = "BUY"
 
     # BEARISH CONFIRMATION
     elif (
@@ -1017,11 +1036,29 @@ def generate_trade_signal(candles5, analysis5, analysis15):
         if rsi15 < 50:
             confidence += 20
 
-        if 30 < rsi5 < 50:
-            confidence += 10
+            if 30 < rsi5 < 50:
+                confidence += 10
 
-        if confidence >= 70:
-            signal = "SELL"
+            # VOLUME CONFIRMATION
+            if (
+                volume5["volume_signal"] == "SELLING PRESSURE"
+                and volume15["volume_signal"] == "SELLING PRESSURE"
+            ):
+                confidence += 10
+            elif (
+                volume5["volume_signal"] == "BUYING PRESSURE"
+                or volume15["volume_signal"] == "BUYING PRESSURE"
+            ):
+                confidence -= 10
+            elif (
+                volume5["volume_signal"] == "SELLING PRESSURE"
+                or volume15["volume_signal"] == "SELLING PRESSURE"
+            ):
+                confidence += 5
+
+            if confidence >= 70:
+                signal = "SELL"
+
 
     result = {
         "signal": signal,
