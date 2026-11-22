@@ -98,6 +98,12 @@ async def btcanalysis(interaction: discord.Interaction):
         analysis5 = analyze_timeframe(candles5)
         analysis15 = analyze_timeframe(candles15)
 
+trade = generate_trade_signal(
+    candles5,
+    analysis5,
+    analysis15
+)
+    
         reversal5 = detect_reversal(candles5)
         reversal15 = detect_reversal(candles15)
 
@@ -174,6 +180,31 @@ async def btcanalysis(interaction: discord.Interaction):
             if signals else "No significant signals detected.",
             inline=False
         )
+
+
+# Trading Signal System
+if trade["signal"] == "WAIT":
+    trade_text = (
+        "**SIGNAL: WAIT**\n"
+        f"Confidence Score: {trade['confidence']}%\n"
+        "No qualifying trading setup detected."
+    )
+
+else:
+    trade_text = (
+        f"**SIGNAL: {trade['signal']}**\n"
+        f"**Confidence Score:** {trade['confidence']}%\n"
+        f"**Entry:** ${trade['entry']:,.2f}\n"
+        f"**Stop Loss:** ${trade['stop_loss']:,.2f}\n"
+        f"**Take Profit 1:** ${trade['take_profit_1']:,.2f}\n"
+        f"**Take Profit 2:** ${trade['take_profit_2']:,.2f}"
+    )
+
+embed.add_field(
+    name="GROK BOT | TRADING SIGNAL",
+    value=trade_text,
+    inline=False
+)
 
         embed.set_footer(
             text="GROK BOT | Informational Only"
@@ -744,6 +775,107 @@ def classify_reversal(rev15, rev5, trend1):
 
     return "NO STRONG REVERSAL SIGNAL"
 
+
+def calculate_atr(candles, period=14):
+    if len(candles) < period + 1:
+        raise ValueError("Not enough candles to calculate ATR.")
+
+    true_ranges = []
+
+    for i in range(1, len(candles)):
+        high = candles[i]["high"]
+        low = candles[i]["low"]
+        previous_close = candles[i - 1]["close"]
+
+        true_range = max(
+            high - low,
+            abs(high - previous_close),
+            abs(low - previous_close)
+        )
+
+        true_ranges.append(true_range)
+
+    return sum(true_ranges[-period:]) / period
+
+
+def generate_trade_signal(candles5, analysis5, analysis15):
+
+    price = candles5[-1]["close"]
+    atr = calculate_atr(candles5)
+
+    rsi5 = analysis5["rsi"]
+    rsi15 = analysis15["rsi"]
+
+    signal = "WAIT"
+    confidence = 0
+
+    # BULLISH CONFIRMATION
+    if (
+        analysis5["trend"] == "BULLISH"
+        and analysis15["trend"] == "BULLISH"
+    ):
+        confidence = 40
+
+        if rsi5 > 50:
+            confidence += 20
+
+        if rsi15 > 50:
+            confidence += 20
+
+        if 50 < rsi5 < 70:
+            confidence += 10
+
+        if confidence >= 70:
+            signal = "BUY"
+
+    # BEARISH CONFIRMATION
+    elif (
+        analysis5["trend"] == "BEARISH"
+        and analysis15["trend"] == "BEARISH"
+    ):
+        confidence = 40
+
+        if rsi5 < 50:
+            confidence += 20
+
+        if rsi15 < 50:
+            confidence += 20
+
+        if 30 < rsi5 < 50:
+            confidence += 10
+
+        if confidence >= 70:
+            signal = "SELL"
+
+    result = {
+        "signal": signal,
+        "confidence": confidence,
+        "entry": None,
+        "stop_loss": None,
+        "take_profit_1": None,
+        "take_profit_2": None,
+        "atr": atr
+    }
+
+    if signal == "BUY":
+        stop = price - (atr * 1.5)
+        risk = price - stop
+
+        result["entry"] = price
+        result["stop_loss"] = stop
+        result["take_profit_1"] = price + (risk * 2)
+        result["take_profit_2"] = price + (risk * 3)
+
+    elif signal == "SELL":
+        stop = price + (atr * 1.5)
+        risk = stop - price
+
+        result["entry"] = price
+        result["stop_loss"] = stop
+        result["take_profit_1"] = price - (risk * 2)
+        result["take_profit_2"] = price - (risk * 3)
+
+    return result
 
 @tasks.loop(minutes=15)
 async def btc_updates():
