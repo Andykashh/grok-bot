@@ -817,6 +817,49 @@ def calculate_atr(candles, period=14):
 
     return sum(true_ranges[-period:]) / period
 
+def analyze_volume(candles, period=20):
+
+    if len(candles) < period + 1:
+        raise ValueError("Not enough candles for volume analysis.")
+
+    volumes = [c["volume"] for c in candles]
+
+    current_volume = volumes[-1]
+
+    previous_volumes = volumes[-(period + 1):-1]
+
+    average_volume = sum(previous_volumes) / period
+
+    if average_volume == 0:
+        volume_ratio = 0
+    else:
+        volume_ratio = current_volume / average_volume
+
+    volume_change = (
+        ((current_volume - average_volume) / average_volume) * 100
+        if average_volume > 0 else 0
+    )
+
+    if volume_ratio >= 2:
+        strength = "EXTREMELY HIGH"
+
+    elif volume_ratio >= 1.5:
+        strength = "HIGH"
+
+    elif volume_ratio >= 1:
+        strength = "NORMAL"
+
+    else:
+        strength = "LOW"
+
+    return {
+        "current_volume": current_volume,
+        "average_volume": average_volume,
+        "volume_ratio": volume_ratio,
+        "volume_change": volume_change,
+        "strength": strength
+    }
+
 
 def generate_trade_signal(candles5, analysis5, analysis15):
 
