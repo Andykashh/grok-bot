@@ -843,6 +843,22 @@ def analyze_volume(candles, period=20):
     volume_spike = volume_ratio >= 1.5
     extreme_volume_spike = volume_ratio >= 2
     
+    if average_volume == 0:
+        unusual_volume = False
+        volume_activity = "UNAVAILABLE"
+
+    elif volume_ratio >= 1.5:
+        unusual_volume = True
+        volume_activity = "UNUSUALLY HIGH"
+
+    elif volume_ratio <= 0.5:
+        unusual_volume = True
+        volume_activity = "UNUSUALLY LOW"
+
+    else:
+        unusual_volume = False
+        volume_activity = "NORMAL"
+
     if volume_ratio >= 2:
         strength = "EXTREMELY HIGH"
 
@@ -855,6 +871,7 @@ def analyze_volume(candles, period=20):
     else:
         strength = "LOW"
 
+
     return {
         "current_volume": current_volume,
         "average_volume": average_volume,
@@ -862,7 +879,9 @@ def analyze_volume(candles, period=20):
         "volume_change": volume_change,
         "strength": strength,
         "volume_spike": volume_spike,
-        "extreme_volume_spike": extreme_volume_spike
+        "extreme_volume_spike": extreme_volume_spike,
+        "unusual_volume": unusual_volume,
+        "volume_activity": volume_activity
     }
 
 
