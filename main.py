@@ -81,6 +81,7 @@ async def btc(interaction: discord.Interaction):
             f"Unable to retrieve BTC data: {error}"
         )
 
+
 @bot.tree.command(
     name="btcanalysis",
     description="Get full Bitcoin technical analysis"
@@ -89,21 +90,34 @@ async def btcanalysis(interaction: discord.Interaction):
     await interaction.response.defer()
 
     try:
+        # Fetch Bitcoin price and candle data
         price, candles5, candles15 = await asyncio.gather(
             asyncio.to_thread(get_btc_price),
             asyncio.to_thread(get_btc_candles, 300, 100),
             asyncio.to_thread(get_btc_candles, 900, 100)
         )
 
+        # Analyze both timeframes
         analysis5 = analyze_timeframe(candles5)
         analysis15 = analyze_timeframe(candles15)
 
-		trade = generate_trade_signal(
-   			candles5,
-    		analysis5,
-    		analysis15
-		)
-    
+        # Multi-timeframe confirmation
+        confirmation = confirm_timeframes(
+            analysis5,
+            analysis15
+        )
+
+        market = confirmation["market"]
+        color = confirmation["color"]
+
+        # Generate trading signal
+        trade = generate_trade_signal(
+            candles5,
+            analysis5,
+            analysis15
+        )
+
+        # Detect reversals
         reversal5 = detect_reversal(candles5)
         reversal15 = detect_reversal(candles15)
 
@@ -113,22 +127,7 @@ async def btcanalysis(interaction: discord.Interaction):
             analysis15["trend"]
         )
 
-        if (
-            analysis5["trend"] == "BULLISH"
-            and analysis15["trend"] == "BULLISH"
-        ):
-            market = "BULLISH"
-            color = discord.Color.green()
-        elif (
-            analysis5["trend"] == "BEARISH"
-            and analysis15["trend"] == "BEARISH"
-        ):
-            market = "BEARISH"
-            color = discord.Color.red()
-        else:
-            market = "MIXED / NEUTRAL"
-            color = discord.Color.orange()
-
+        # Create market analysis embed
         embed = discord.Embed(
             title="GROK BOT | BTC MARKET ANALYSIS",
             description=(
@@ -138,6 +137,7 @@ async def btcanalysis(interaction: discord.Interaction):
             color=color
         )
 
+        # 5-minute analysis
         embed.add_field(
             name="5-Minute Analysis",
             value=(
@@ -149,6 +149,7 @@ async def btcanalysis(interaction: discord.Interaction):
             inline=True
         )
 
+        # 15-minute analysis
         embed.add_field(
             name="15-Minute Analysis",
             value=(
@@ -160,12 +161,25 @@ async def btcanalysis(interaction: discord.Interaction):
             inline=True
         )
 
+        # Multi-timeframe confirmation
+        embed.add_field(
+            name="Multi-Timeframe Confirmation",
+            value=(
+                f"Alignment: **{confirmation['alignment']}**\n"
+                f"Momentum: **{confirmation['momentum']}**\n"
+                f"Assessment: **{confirmation['confirmation']}**"
+            ),
+            inline=False
+        )
+
+        # Reversal analysis
         embed.add_field(
             name="Reversal Analysis",
             value=f"**{reversal}**",
             inline=False
         )
 
+        # Detected signals
         signals = (
             [f"5M: {s}" for s in reversal5["signals"]
              if s != "Insufficient data"]
@@ -176,47 +190,53 @@ async def btcanalysis(interaction: discord.Interaction):
 
         embed.add_field(
             name="Detected Signals",
-            value="\n".join(dict.fromkeys(signals))
-            if signals else "No significant signals detected.",
+            value=(
+                "\n".join(dict.fromkeys(signals))
+                if signals
+                else "No significant signals detected."
+            ),
             inline=False
         )
 
+        # Trading signal system
+        if trade["signal"] == "WAIT":
+            trade_text = (
+                "**SIGNAL: WAIT**\n"
+                f"Confidence Score: {trade['confidence']}%\n"
+                "No qualifying trading setup detected."
+            )
 
-# Trading Signal System
-if trade["signal"] == "WAIT":
-    trade_text = (
-        "**SIGNAL: WAIT**\n"
-        f"Confidence Score: {trade['confidence']}%\n"
-        "No qualifying trading setup detected."
-    )
+        else:
+            trade_text = (
+                f"**SIGNAL: {trade['signal']}**\n"
+                f"Confidence Score: {trade['confidence']}%\n"
+                f"Entry: ${trade['entry']:,.2f}\n"
+                f"Stop Loss: ${trade['stop_loss']:,.2f}\n"
+                f"Take Profit 1: ${trade['take_profit_1']:,.2f}\n"
+                f"Take Profit 2: ${trade['take_profit_2']:,.2f}"
+            )
 
-else:
-    trade_text = (
-        f"**SIGNAL: {trade['signal']}**\n"
-        f"**Confidence Score:** {trade['confidence']}%\n"
-        f"**Entry:** ${trade['entry']:,.2f}\n"
-        f"**Stop Loss:** ${trade['stop_loss']:,.2f}\n"
-        f"**Take Profit 1:** ${trade['take_profit_1']:,.2f}\n"
-        f"**Take Profit 2:** ${trade['take_profit_2']:,.2f}"
-    )
-
-embed.add_field(
-    name="GROK BOT | TRADING SIGNAL",
-    value=trade_text,
-    inline=False
-)
+        embed.add_field(
+            name="GROK BOT | TRADING SIGNAL",
+            value=trade_text,
+            inline=False
+        )
 
         embed.set_footer(
-            text="GROK BOT | Informational Only"
+            text="GROK BOT | Technical Analysis | Informational Only"
         )
+
+        embed.timestamp = discord.utils.utcnow()
 
         await interaction.followup.send(embed=embed)
 
     except Exception as error:
         print(f"BTC analysis command error: {error}")
+
         await interaction.followup.send(
             f"Unable to complete BTC analysis: {error}"
         )
+
 
 @bot.tree.command(name="status", description="Check GROK BOT status")
 async def status(interaction: discord.Interaction):
