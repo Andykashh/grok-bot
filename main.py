@@ -98,11 +98,11 @@ async def btcanalysis(interaction: discord.Interaction):
         analysis5 = analyze_timeframe(candles5)
         analysis15 = analyze_timeframe(candles15)
 
-trade = generate_trade_signal(
-    candles5,
-    analysis5,
-    analysis15
-)
+		trade = generate_trade_signal(
+   			candles5,
+    		analysis5,
+    		analysis15
+		)
     
         reversal5 = detect_reversal(candles5)
         reversal15 = detect_reversal(candles15)
