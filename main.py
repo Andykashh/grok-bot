@@ -97,15 +97,19 @@ async def btcanalysis(interaction: discord.Interaction):
             asyncio.to_thread(get_btc_candles, 900, 100)
         )
 
-        # Analyze both timeframes
-        analysis5 = analyze_timeframe(candles5)
-        analysis15 = analyze_timeframe(candles15)
+# Analyze both timeframes
+analysis5 = analyze_timeframe(candles5)
+analysis15 = analyze_timeframe(candles15)
 
-        # Multi-timeframe confirmation
-        confirmation = confirm_timeframes(
-            analysis5,
-            analysis15
-        )
+# Analyze trading volume on both timeframes
+volume5 = analyze_volume(candles5)
+volume15 = analyze_volume(candles15)
+
+# Multi-timeframe confirmation
+confirmation = confirm_timeframes(
+    analysis5,
+    analysis15
+)
 
         market = confirmation["market"]
         color = confirmation["color"]
@@ -159,6 +163,28 @@ async def btcanalysis(interaction: discord.Interaction):
                 f"RSI: {analysis15['rsi']:.2f}"
             ),
             inline=True
+        )
+
+        # Trading volume analysis
+        embed.add_field(
+            name="Trading Volume Analysis",
+            value=(
+                "**5-Minute Volume**\n"
+                f"Activity: {volume5['volume_activity']}\n"
+                f"Strength: {volume5['strength']}\n"
+                f"Volume Ratio: {volume5['volume_ratio']:.2f}x\n"
+                f"Change: {volume5['volume_change']:+.2f}%\n"
+                f"Pressure: {volume5['pressure']}\n"
+                f"Signal: **{volume5['volume_signal']}**\n\n"
+                "**15-Minute Volume**\n"
+                f"Activity: {volume15['volume_activity']}\n"
+                f"Strength: {volume15['strength']}\n"
+                f"Volume Ratio: {volume15['volume_ratio']:.2f}x\n"
+                f"Change: {volume15['volume_change']:+.2f}%\n"
+                f"Pressure: {volume15['pressure']}\n"
+                f"Signal: **{volume15['volume_signal']}**"
+            ),
+            inline=False
         )
 
         # Multi-timeframe confirmation
