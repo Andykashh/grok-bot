@@ -855,16 +855,15 @@ def analyze_volume(candles, period=20):
     else:
         strength = "LOW"
 
-    
-return {
-    "current_volume": current_volume,
-    "average_volume": average_volume,
-    "volume_ratio": volume_ratio,
-    "volume_change": volume_change,
-    "strength": strength,
-    "volume_spike": volume_spike,
-    "extreme_volume_spike": extreme_volume_spike
-}
+    return {
+        "current_volume": current_volume,
+        "average_volume": average_volume,
+        "volume_ratio": volume_ratio,
+        "volume_change": volume_change,
+        "strength": strength,
+        "volume_spike": volume_spike,
+        "extreme_volume_spike": extreme_volume_spike
+    }
 
 
 def generate_trade_signal(candles5, analysis5, analysis15):
