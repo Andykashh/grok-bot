@@ -859,6 +859,40 @@ def analyze_volume(candles, period=20):
         unusual_volume = False
         volume_activity = "NORMAL"
 
+    candle = candles[-1]
+
+    candle_open = candle["open"]
+    candle_close = candle["close"]
+    candle_high = candle["high"]
+    candle_low = candle["low"]
+
+    candle_range = candle_high - candle_low
+
+    if candle_range == 0:
+        buying_pressure = 0
+        selling_pressure = 0
+        pressure = "NEUTRAL"
+
+    else:
+        close_position = (
+            (candle_close - candle_low) / candle_range
+        )
+
+        if candle_close > candle_open and close_position >= 0.6:
+            buying_pressure = close_position * 100
+            selling_pressure = (1 - close_position) * 100
+            pressure = "BUYERS"
+
+        elif candle_close < candle_open and close_position <= 0.4:
+            buying_pressure = close_position * 100
+            selling_pressure = (1 - close_position) * 100
+            pressure = "SELLERS"
+
+        else:
+            buying_pressure = close_position * 100
+            selling_pressure = (1 - close_position) * 100
+            pressure = "BALANCED"
+
     if volume_ratio >= 2:
         strength = "EXTREMELY HIGH"
 
@@ -872,6 +906,7 @@ def analyze_volume(candles, period=20):
         strength = "LOW"
 
 
+    
     return {
         "current_volume": current_volume,
         "average_volume": average_volume,
@@ -881,7 +916,10 @@ def analyze_volume(candles, period=20):
         "volume_spike": volume_spike,
         "extreme_volume_spike": extreme_volume_spike,
         "unusual_volume": unusual_volume,
-        "volume_activity": volume_activity
+        "volume_activity": volume_activity,
+        "buying_pressure": buying_pressure,
+        "selling_pressure": selling_pressure,
+        "pressure": pressure
     }
 
 
