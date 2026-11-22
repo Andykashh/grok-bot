@@ -118,7 +118,7 @@ async def btcanalysis(interaction: discord.Interaction):
         trade = generate_trade_signal(
             candles5,
             analysis5,
-            analysis15
+            analysis15,
             volume5,
             volume15
         )
