@@ -943,7 +943,7 @@ def analyze_volume(candles, period=20):
         "volume_activity": volume_activity,
         "buying_pressure": buying_pressure,
         "selling_pressure": selling_pressure,
-        "pressure": pressure
+        "pressure": pressure,
         "volume_signal": volume_signal
     }
 
