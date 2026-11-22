@@ -839,7 +839,10 @@ def analyze_volume(candles, period=20):
         ((current_volume - average_volume) / average_volume) * 100
         if average_volume > 0 else 0
     )
-
+    
+    volume_spike = volume_ratio >= 1.5
+    extreme_volume_spike = volume_ratio >= 2
+    
     if volume_ratio >= 2:
         strength = "EXTREMELY HIGH"
 
@@ -852,13 +855,16 @@ def analyze_volume(candles, period=20):
     else:
         strength = "LOW"
 
-    return {
-        "current_volume": current_volume,
-        "average_volume": average_volume,
-        "volume_ratio": volume_ratio,
-        "volume_change": volume_change,
-        "strength": strength
-    }
+    
+return {
+    "current_volume": current_volume,
+    "average_volume": average_volume,
+    "volume_ratio": volume_ratio,
+    "volume_change": volume_change,
+    "strength": strength,
+    "volume_spike": volume_spike,
+    "extreme_volume_spike": extreme_volume_spike
+}
 
 
 def generate_trade_signal(candles5, analysis5, analysis15):
