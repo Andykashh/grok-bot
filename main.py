@@ -1119,15 +1119,17 @@ async def btc_updates():
     if not CHANNEL_ID:
         return
 
+    
     try:
         channel = bot.get_channel(int(CHANNEL_ID))
 
-if channel is None:
-    channel = await bot.fetch_channel(int(CHANNEL_ID))
+        if channel is None:
+            channel = await bot.fetch_channel(int(CHANNEL_ID))
 
-if not hasattr(channel, "send"):
-    print("BTC update error: Channel cannot receive messages.")
-    return
+        if not hasattr(channel, "send"):
+            print("BTC update error: Channel cannot receive messages.")
+            return
+
 
         # Fetch BTC price and both candle timeframes
         price, candles5, candles15 = await asyncio.gather(
