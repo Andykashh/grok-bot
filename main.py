@@ -51,37 +51,33 @@ def get_btc_price():
 
 # GROK BOT | Detect Rapid BTC Price Movements
 
+
+# GROK BOT | Detect Rapid BTC Price Movements
+
 def detect_btc_movement(candles):
-    """
-    Detect BTC price movements of 1% or more
-    within the most recent 5-minute window.
-    """
-
-    if not candles or len(candles) < 2:
+    if not candles or len(candles) < 6:
         return None
 
-    # Sort candles from oldest to newest
-    candles = sorted(candles, key=lambda c: c[0])
+    candles = sorted(
+        candles,
+        key=lambda c: c["time"]
+    )
 
-    # Use the latest candle and the candle 5 minutes earlier
-    latest = candles[-1]
-    latest_time = float(latest[0])
-    target_time = latest_time - BTC_MOVEMENT_WINDOW_SECONDS
+    # Use completed 1-minute candles
+    completed = candles[:-1]
 
-    previous = None
-
-    for candle in reversed(candles[:-1]):
-        if float(candle[0]) <= target_time:
-            previous = candle
-            break
-
-    if previous is None:
+    if len(completed) < 6:
         return None
 
-    # Coinbase candles:
-    # [timestamp, low, high, open, close, volume]
-    old_price = float(previous[4])
-    new_price = float(latest[4])
+    latest = completed[-1]
+    previous = completed[-6]
+
+    # Ensure the candles are 5 minutes apart
+    if latest["time"] - previous["time"] != 300:
+        return None
+
+    old_price = float(previous["close"])
+    new_price = float(latest["close"])
 
     if old_price <= 0:
         return None
@@ -103,6 +99,7 @@ def detect_btc_movement(candles):
         "old_price": old_price,
         "new_price": new_price
     }
+
 
 # GROK BOT | BTC Volume Spike Detection
 
