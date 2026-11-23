@@ -1124,30 +1124,32 @@ def generate_trade_signal(candles5, analysis5, analysis15, volume5, volume15):
     trend5 = analysis5["trend"]
     trend15 = analysis15["trend"]
 
+    
     if trend5 == "BULLISH":
-    setup_strength += 20
+        setup_strength += 20
     elif trend5 == "BEARISH":
-    setup_strength += 20
+        setup_strength += 20
 
     if trend15 == "BULLISH":
-    setup_strength += 20
+        setup_strength += 20
     elif trend15 == "BEARISH":
-    setup_strength += 20
+        setup_strength += 20
+
 
     # Reward agreement between timeframes
     if trend5 == trend15 and trend5 != "NEUTRAL":
-    setup_strength += 20
+        setup_strength += 20
 
     # RSI confirmation
     if trend5 == "BULLISH" and rsi5 > 50:
-    setup_strength += 10
+        setup_strength += 10
     elif trend5 == "BEARISH" and rsi5 < 50:
-    setup_strength += 10
+        setup_strength += 10
 
     if trend15 == "BULLISH" and rsi15 > 50:
-    setup_strength += 10
+        setup_strength += 10
     elif trend15 == "BEARISH" and rsi15 < 50:
-    setup_strength += 10
+        setup_strength += 10
 
     setup_strength = min(100, setup_strength)
 
