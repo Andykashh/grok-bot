@@ -49,6 +49,61 @@ def get_btc_price():
     return float(data["data"]["amount"])
 
 
+# GROK BOT | Detect Rapid BTC Price Movements
+
+def detect_btc_movement(candles):
+    """
+    Detect BTC price movements of 1% or more
+    within the most recent 5-minute window.
+    """
+
+    if not candles or len(candles) < 2:
+        return None
+
+    # Sort candles from oldest to newest
+    candles = sorted(candles, key=lambda c: c[0])
+
+    # Use the latest candle and the candle 5 minutes earlier
+    latest = candles[-1]
+    latest_time = float(latest[0])
+    target_time = latest_time - BTC_MOVEMENT_WINDOW_SECONDS
+
+    previous = None
+
+    for candle in reversed(candles[:-1]):
+        if float(candle[0]) <= target_time:
+            previous = candle
+            break
+
+    if previous is None:
+        return None
+
+    # Coinbase candles:
+    # [timestamp, low, high, open, close, volume]
+    old_price = float(previous[4])
+    new_price = float(latest[4])
+
+    if old_price <= 0:
+        return None
+
+    change_percent = (
+        (new_price - old_price) / old_price
+    ) * 100
+
+    if change_percent >= BTC_MOVEMENT_THRESHOLD * 100:
+        direction = "UP"
+    elif change_percent <= -BTC_MOVEMENT_THRESHOLD * 100:
+        direction = "DOWN"
+    else:
+        return None
+
+    return {
+        "direction": direction,
+        "change_percent": round(change_percent, 2),
+        "old_price": old_price,
+        "new_price": new_price
+    }
+
 class GrokBot(discord.Client):
     def __init__(self):
         super().__init__(intents=intents)
