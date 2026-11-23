@@ -1357,9 +1357,65 @@ async def btc_reversal_monitor():
             analysis15["trend"]
         )
 
-        print(
-            f"GROK BOT | Reversal Monitor: {reversal}"
-        )
+        
+        global last_reversal_state
+
+        # Only alert on new reversal states
+        alert_states = {
+            "POTENTIAL BULLISH REVERSAL",
+            "CONFIRMED BULLISH REVERSAL",
+            "POTENTIAL BEARISH REVERSAL",
+            "CONFIRMED BEARISH REVERSAL"
+        }
+
+        # Initialize state without sending an old alert
+        if last_reversal_state is None:
+            last_reversal_state = reversal
+            print(f"Reversal monitor initialized: {reversal}")
+            return
+
+        # Detect changes in reversal state
+        if reversal != last_reversal_state:
+            previous_state = last_reversal_state
+            last_reversal_state = reversal
+
+            if reversal in alert_states:
+                if "BULLISH" in reversal:
+                    color = discord.Color.green()
+                    direction = "BULLISH"
+                else:
+                    color = discord.Color.red()
+                    direction = "BEARISH"
+
+                embed = discord.Embed(
+                    title="GROK BOT | BTC REVERSAL ALERT",
+                    description=(
+                        f"**New Signal:** {reversal}\n"
+                        f"**Direction:** {direction}\n"
+                        f"**Previous State:** {previous_state}\n"
+                        f"**5M Trend:** {analysis5['trend']}\n"
+                        f"**15M Trend:** {analysis15['trend']}"
+                    ),
+                    color=color
+                )
+
+                embed.timestamp = discord.utils.utcnow()
+                embed.set_footer(
+                    text="GROK BOT | Reversal Warning | Informational Only"
+                )
+
+                if CHANNEL_ID:
+                    channel = bot.get_channel(int(CHANNEL_ID))
+
+                    if channel is None:
+                        channel = await bot.fetch_channel(
+                            int(CHANNEL_ID)
+                        )
+
+                    await channel.send(embed=embed)
+
+                print(f"New reversal alert: {reversal}")
+
 
     except Exception as error:
         print(f"BTC reversal monitor error: {error}")
