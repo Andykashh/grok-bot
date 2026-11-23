@@ -389,7 +389,9 @@ async def btcanalysis(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed)
 
     except Exception as error:
-        print(f"BTC analysis command error: {error}")
+    import traceback
+    print(f"BTC movement monitor error: {error!r}")
+    traceback.print_exc()
 
         await interaction.followup.send(
             f"Unable to complete BTC analysis: {error}"
