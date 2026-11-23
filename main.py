@@ -101,9 +101,11 @@ async def btcanalysis(interaction: discord.Interaction):
         analysis5 = analyze_timeframe(candles5)
         analysis15 = analyze_timeframe(candles15)
 
+        
         # Analyze trading volume on both timeframes
         volume5 = analyze_volume(candles5)
         volume15 = analyze_volume(candles15)
+
 
         # Multi-timeframe confirmation
         confirmation = confirm_timeframes(
@@ -1135,9 +1137,20 @@ async def btc_updates():
         analysis5 = analyze_timeframe(candles5)
         analysis15 = analyze_timeframe(candles15)
 
+        
         # Analyze trading volume on both timeframes
         volume5 = analyze_volume(candles5)
         volume15 = analyze_volume(candles15)
+
+        # Generate volume-confirmed trading signal
+        trade = generate_trade_signal(
+            candles5,
+            analysis5,
+            analysis15,
+            volume5,
+            volume15
+        )
+
         
         
         # Detect reversal signals
@@ -1196,6 +1209,28 @@ async def btc_updates():
             inline=True
         )
 
+        # Trading volume analysis
+        embed.add_field(
+            name="Trading Volume Analysis",
+            value=(
+                "**5-Minute Volume**\n"
+                f"Activity: {volume5['volume_activity']}\n"
+                f"Strength: {volume5['strength']}\n"
+                f"Volume Ratio: {volume5['volume_ratio']:.2f}x\n"
+                f"Change: {volume5['volume_change']:+.2f}%\n"
+                f"Pressure: {volume5['pressure']}\n"
+                f"Signal: **{volume5['volume_signal']}**\n\n"
+                "**15-Minute Volume**\n"
+                f"Activity: {volume15['volume_activity']}\n"
+                f"Strength: {volume15['strength']}\n"
+                f"Volume Ratio: {volume15['volume_ratio']:.2f}x\n"
+                f"Change: {volume15['volume_change']:+.2f}%\n"
+                f"Pressure: {volume15['pressure']}\n"
+                f"Signal: **{volume15['volume_signal']}**"
+            ),
+            inline=False
+        )
+
         # Multi-timeframe confirmation
         embed.add_field(
             name="Multi-Timeframe Confirmation",
@@ -1247,6 +1282,30 @@ async def btc_updates():
                 f"5M: {'Overbought' if rsi5 >= 70 else 'Oversold' if rsi5 <= 30 else 'Neutral'}\n"
                 f"15M: {'Overbought' if rsi15 >= 70 else 'Oversold' if rsi15 <= 30 else 'Neutral'}"
             ),
+            inline=False
+        )
+
+        # Trading signal system
+        if trade["signal"] == "WAIT":
+            trade_text = (
+                "**SIGNAL: WAIT**\n"
+                f"Confidence Score: {trade['confidence']}%\n"
+                "No qualifying trading setup detected."
+            )
+
+        else:
+            trade_text = (
+                f"**SIGNAL: {trade['signal']}**\n"
+                f"Confidence Score: {trade['confidence']}%\n"
+                f"Entry: ${trade['entry']:,.2f}\n"
+                f"Stop Loss: ${trade['stop_loss']:,.2f}\n"
+                f"Take Profit 1: ${trade['take_profit_1']:,.2f}\n"
+                f"Take Profit 2: ${trade['take_profit_2']:,.2f}"
+            )
+
+        embed.add_field(
+            name="GROK BOT | TRADING SIGNAL",
+            value=trade_text,
             inline=False
         )
 
