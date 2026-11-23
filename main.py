@@ -976,6 +976,7 @@ def analyze_volume(candles, period=20):
     }
 
 
+
 def generate_trade_signal(candles5, analysis5, analysis15, volume5, volume15):
 
     price = candles5[-1]["close"]
@@ -986,6 +987,21 @@ def generate_trade_signal(candles5, analysis5, analysis15, volume5, volume15):
 
     signal = "WAIT"
     confidence = 0
+
+    buying_signals = (
+        "BUYING PRESSURE",
+        "STRONG BUYING",
+        "VERY STRONG BUYING"
+    )
+
+    selling_signals = (
+        "SELLING PRESSURE",
+        "STRONG SELLING",
+        "VERY STRONG SELLING"
+    )
+
+    volume_signal5 = volume5["volume_signal"]
+    volume_signal15 = volume15["volume_signal"]
 
     # BULLISH CONFIRMATION
     if (
@@ -1000,28 +1016,30 @@ def generate_trade_signal(candles5, analysis5, analysis15, volume5, volume15):
         if rsi15 > 50:
             confidence += 20
 
-            if 50 < rsi5 < 70:
-                confidence += 10
+        if 50 < rsi5 < 70:
+            confidence += 10
 
-            # VOLUME CONFIRMATION
-            if (
-                volume5["volume_signal"] == "BUYING PRESSURE"
-                and volume15["volume_signal"] == "BUYING PRESSURE"
-            ):
-                confidence += 10
-            elif (
-                volume5["volume_signal"] == "SELLING PRESSURE"
-                or volume15["volume_signal"] == "SELLING PRESSURE"
-            ):
-                confidence -= 10
-            elif (
-                volume5["volume_signal"] == "BUYING PRESSURE"
-                or volume15["volume_signal"] == "BUYING PRESSURE"
-            ):
-                confidence += 5
+        # Volume confirmation
+        if (
+            volume_signal5 in buying_signals
+            and volume_signal15 in buying_signals
+        ):
+            confidence += 10
 
-            if confidence >= 70:
-                signal = "BUY"
+        elif (
+            volume_signal5 in selling_signals
+            or volume_signal15 in selling_signals
+        ):
+            confidence -= 10
+
+        elif (
+            volume_signal5 in buying_signals
+            or volume_signal15 in buying_signals
+        ):
+            confidence += 5
+
+        if confidence >= 70:
+            signal = "BUY"
 
     # BEARISH CONFIRMATION
     elif (
@@ -1036,29 +1054,32 @@ def generate_trade_signal(candles5, analysis5, analysis15, volume5, volume15):
         if rsi15 < 50:
             confidence += 20
 
-            if 30 < rsi5 < 50:
-                confidence += 10
+        if 30 < rsi5 < 50:
+            confidence += 10
 
-            # VOLUME CONFIRMATION
-            if (
-                volume5["volume_signal"] == "SELLING PRESSURE"
-                and volume15["volume_signal"] == "SELLING PRESSURE"
-            ):
-                confidence += 10
-            elif (
-                volume5["volume_signal"] == "BUYING PRESSURE"
-                or volume15["volume_signal"] == "BUYING PRESSURE"
-            ):
-                confidence -= 10
-            elif (
-                volume5["volume_signal"] == "SELLING PRESSURE"
-                or volume15["volume_signal"] == "SELLING PRESSURE"
-            ):
-                confidence += 5
+        # Volume confirmation
+        if (
+            volume_signal5 in selling_signals
+            and volume_signal15 in selling_signals
+        ):
+            confidence += 10
 
-            if confidence >= 70:
-                signal = "SELL"
+        elif (
+            volume_signal5 in buying_signals
+            or volume_signal15 in buying_signals
+        ):
+            confidence -= 10
 
+        elif (
+            volume_signal5 in selling_signals
+            or volume_signal15 in selling_signals
+        ):
+            confidence += 5
+
+        if confidence >= 70:
+            signal = "SELL"
+
+    confidence = max(0, min(100, confidence))
 
     result = {
         "signal": signal,
@@ -1089,6 +1110,7 @@ def generate_trade_signal(candles5, analysis5, analysis15, volume5, volume15):
         result["take_profit_2"] = price - (risk * 3)
 
     return result
+
 
 @tasks.loop(minutes=15)
 async def btc_updates():
