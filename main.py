@@ -112,21 +112,22 @@ def detect_btc_volume_spike(candles):
     if not candles or len(candles) < 22:
         return None
 
-    # Coinbase candle format:
-    # [timestamp, low, high, open, close, volume]
-    candles = sorted(candles, key=lambda c: c[0])
+    
+    # Coinbase candles are dictionaries
+    candles = sorted(candles, key=lambda c: c["time"])
 
-    # Exclude the newest candle, which may be incomplete
+    # Exclude the newest potentially incomplete candle
     completed = candles[:-1]
 
     latest = completed[-1]
     previous = completed[-21:-1]
 
-    latest_volume = float(latest[5])
+    latest_volume = float(latest["volume"])
 
     average_volume = sum(
-        float(candle[5]) for candle in previous
+        float(candle["volume"]) for candle in previous
     ) / len(previous)
+
 
     if average_volume <= 0:
         return None
