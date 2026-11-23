@@ -104,6 +104,51 @@ def detect_btc_movement(candles):
         "new_price": new_price
     }
 
+# GROK BOT | BTC Volume Spike Detection
+
+def detect_btc_volume_spike(candles):
+    """
+    Compare the latest completed candle's volume
+    against the previous 20 completed candles.
+    """
+
+    if not candles or len(candles) < 22:
+        return None
+
+    # Coinbase candle format:
+    # [timestamp, low, high, open, close, volume]
+    candles = sorted(candles, key=lambda c: c[0])
+
+    # Exclude the newest candle, which may be incomplete
+    completed = candles[:-1]
+
+    latest = completed[-1]
+    previous = completed[-21:-1]
+
+    latest_volume = float(latest[5])
+
+    average_volume = sum(
+        float(candle[5]) for candle in previous
+    ) / len(previous)
+
+    if average_volume <= 0:
+        return None
+
+    volume_ratio = latest_volume / average_volume
+
+    if volume_ratio >= BTC_VOLUME_SPIKE_MULTIPLIER:
+        status = "SPIKE"
+    else:
+        status = "NORMAL"
+
+    return {
+        "status": status,
+        "volume_ratio": round(volume_ratio, 2),
+        "latest_volume": latest_volume,
+        "average_volume": round(average_volume, 4),
+        "is_spike": status == "SPIKE"
+    }
+
 class GrokBot(discord.Client):
     def __init__(self):
         super().__init__(intents=intents)
