@@ -47,6 +47,11 @@ class GrokBot(discord.Client):
             btc_updates.start()
             print("GROK BOT: Automatic BTC updates started.")
 
+        # Start automatic 1-minute BTC reversal monitoring
+        if not btc_reversal_monitor.is_running():
+            btc_reversal_monitor.start()
+            print("GROK BOT: 1-minute reversal alerts activated.")
+
 
 bot = GrokBot()
 
