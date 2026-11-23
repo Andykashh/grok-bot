@@ -1554,6 +1554,102 @@ async def before_btc_reversal_monitor():
     await bot.wait_until_ready()
 
 
+# GROK BOT | Automatic BTC Movement Monitor
+
+@tasks.loop(seconds=BTC_MOVEMENT_CHECK_SECONDS)
+async def btc_movement_monitor():
+    try:
+        candles = await asyncio.to_thread(
+            get_btc_candles, 60, 100
+        )
+
+        movement = detect_btc_movement(candles)
+        volume = detect_btc_volume_spike(candles)
+
+        if movement is None:
+            return
+
+        direction = movement["direction"]
+        now = time.time()
+
+        alert_key = (
+            "last_up_alert"
+            if direction == "UP"
+            else "last_down_alert"
+        )
+
+        last_alert = btc_movement_alert_state[alert_key]
+
+        if (
+            last_alert is not None
+            and now - last_alert < BTC_MOVEMENT_ALERT_COOLDOWN
+        ):
+            return
+
+        if not CHANNEL_ID:
+            return
+
+        channel = bot.get_channel(int(CHANNEL_ID))
+
+        if channel is None:
+            channel = await bot.fetch_channel(
+                int(CHANNEL_ID)
+            )
+
+        color = (
+            discord.Color.green()
+            if direction == "UP"
+            else discord.Color.red()
+        )
+
+        embed = discord.Embed(
+            title="GROK BOT | RAPID BTC MOVEMENT",
+            description=(
+                f"**Direction:** {direction}\n"
+                f"**5-Minute Change:** "
+                f"{movement['change_percent']:+.2f}%\n"
+                f"**Previous Price:** "
+                f"${movement['old_price']:,.2f}\n"
+                f"**Current Price:** "
+                f"${movement['new_price']:,.2f}"
+            ),
+            color=color
+        )
+
+        if volume and volume["is_spike"]:
+            embed.add_field(
+                name="VOLUME SPIKE WARNING",
+                value=(
+                    f"Volume Ratio: "
+                    f"{volume['volume_ratio']:.2f}x\n"
+                    "Unusually high trading activity detected."
+                ),
+                inline=False
+            )
+
+        embed.timestamp = discord.utils.utcnow()
+
+        embed.set_footer(
+            text="GROK BOT | BTC Movement Alert | Informational Only"
+        )
+
+        await channel.send(embed=embed)
+
+        btc_movement_alert_state[alert_key] = now
+
+        print(
+            f"GROK BOT: BTC {direction} "
+            f"{movement['change_percent']:+.2f}% alert sent."
+        )
+
+    except Exception as error:
+        print(f"BTC movement monitor error: {error}")
+
+
+@btc_movement_monitor.before_loop
+async def before_btc_movement_monitor():
+    await bot.wait_until_ready()
+
 
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN environment variable is missing")
