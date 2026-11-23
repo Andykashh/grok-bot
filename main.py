@@ -1245,6 +1245,7 @@ elif trend15 == "BEARISH" and rsi15 < 50:
 
     confidence = max(0, min(100, confidence))
 
+    
     result = {
         "signal": signal,
         "confidence": confidence,
