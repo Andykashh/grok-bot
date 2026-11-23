@@ -1334,6 +1334,9 @@ async def before_btc_updates():
 
 # GROK BOT | 1-Minute Reversal Monitor
 
+# Remember the previous reversal state
+last_reversal_state = None
+
 @tasks.loop(minutes=1)
 async def btc_reversal_monitor():
     try:
