@@ -171,6 +171,11 @@ class GrokBot(discord.Client):
             print("GROK BOT: 1-minute reversal alerts activated.")
 
 
+        # Start automatic 1-minute BTC movement alerts
+        if not btc_movement_monitor.is_running():
+            btc_movement_monitor.start()
+            print("GROK BOT: 1-minute BTC movement alerts activated.")
+
 bot = GrokBot()
 
 @bot.tree.command(
