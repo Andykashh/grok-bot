@@ -1150,7 +1150,7 @@ if trend15 == "BULLISH" and rsi15 > 50:
 elif trend15 == "BEARISH" and rsi15 < 50:
     setup_strength += 10
 
-setup_strength = min(100, setup_strength)
+    setup_strength = min(100, setup_strength)
 
     buying_signals = (
         "BUYING PRESSURE",
