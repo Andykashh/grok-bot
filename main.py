@@ -11,6 +11,27 @@ from discord.ext import tasks
 TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
+# GROK BOT | BTC Rapid Market Movement Alerts
+
+BTC_MOVEMENT_CHECK_SECONDS = 60
+
+# Alert when BTC moves 1% or more within 5 minutes
+BTC_MOVEMENT_THRESHOLD = 0.01
+BTC_MOVEMENT_WINDOW_SECONDS = 300
+
+# Volume spike detection: 2x normal volume
+BTC_VOLUME_SPIKE_MULTIPLIER = 2.0
+
+# Prevent repeated alerts for the same event
+BTC_MOVEMENT_ALERT_COOLDOWN = 300
+
+# Track previously sent alerts
+btc_movement_alert_state = {
+    "last_up_alert": None,
+    "last_down_alert": None,
+    "last_volume_alert": None
+}
+
 intents = discord.Intents.default()
 
 
