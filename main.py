@@ -1332,6 +1332,40 @@ async def btc_updates():
 async def before_btc_updates():
     await bot.wait_until_ready()
 
+# GROK BOT | 1-Minute Reversal Monitor
+
+@tasks.loop(minutes=1)
+async def btc_reversal_monitor():
+    try:
+        candles5, candles15 = await asyncio.gather(
+            asyncio.to_thread(get_btc_candles, 300, 100),
+            asyncio.to_thread(get_btc_candles, 900, 100)
+        )
+
+        analysis5 = analyze_timeframe(candles5)
+        analysis15 = analyze_timeframe(candles15)
+
+        reversal5 = detect_reversal(candles5)
+        reversal15 = detect_reversal(candles15)
+
+        reversal = classify_reversal(
+            reversal15,
+            reversal5,
+            analysis15["trend"]
+        )
+
+        print(
+            f"GROK BOT | Reversal Monitor: {reversal}"
+        )
+
+    except Exception as error:
+        print(f"BTC reversal monitor error: {error}")
+
+
+@btc_reversal_monitor.before_loop
+async def before_btc_reversal_monitor():
+    await bot.wait_until_ready()
+
 
 
 if not TOKEN:
