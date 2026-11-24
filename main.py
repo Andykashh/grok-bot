@@ -2258,6 +2258,109 @@ async def kalshi_settlement_monitor():
 @kalshi_settlement_monitor.before_loop
 async def before_kalshi_settlement_monitor():
     await bot.wait_until_ready()
+    
+@bot.tree.command(
+    name="performance",
+    description="View historical alert performance"
+)
+async def performance(interaction: discord.Interaction):
+    total = len(kalshi_performance)
+
+    correct = sum(
+        r["result"] == "CORRECT"
+        for r in kalshi_performance
+    )
+
+    incorrect = sum(
+        r["result"] == "INCORRECT"
+        for r in kalshi_performance
+    )
+
+    pending = sum(
+        r["result"] == "PENDING"
+        for r in kalshi_performance
+    )
+
+    completed = correct + incorrect
+
+    accuracy = (
+        f"{correct / completed * 100:.1f}%"
+        if completed else "N/A"
+    )
+
+    crossovers = sum(
+        r.get("crossover") is True
+        for r in kalshi_performance
+    )
+
+    times = [
+        r["crossover_time"]
+        for r in kalshi_performance
+        if r.get("crossover_time") is not None
+    ]
+
+    average_time = (
+        f"{sum(times) / len(times):.1f} seconds"
+        if times else "N/A"
+    )
+
+    embed = discord.Embed(
+        title="GROK BOT | PERFORMANCE TRACKER",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(
+        name="Total Alerts",
+        value=str(total),
+        inline=True
+    )
+
+    embed.add_field(
+        name="Settlement Accuracy",
+        value=accuracy,
+        inline=True
+    )
+
+    embed.add_field(
+        name="Correct",
+        value=str(correct),
+        inline=True
+    )
+
+    embed.add_field(
+        name="Incorrect",
+        value=str(incorrect),
+        inline=True
+    )
+
+    embed.add_field(
+        name="Pending Results",
+        value=str(pending),
+        inline=True
+    )
+
+    embed.add_field(
+        name="Observed Crossovers",
+        value=str(crossovers),
+        inline=True
+    )
+
+    embed.add_field(
+        name="Average Crossover Time",
+        value=average_time,
+        inline=False
+    )
+
+    embed.set_footer(
+        text="Historical observations | Not a profitability measure"
+    )
+
+    embed.timestamp = discord.utils.utcnow()
+
+    await interaction.response.send_message(embed=embed)
+
+
+
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN environment variable is missing")
 
