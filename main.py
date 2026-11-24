@@ -162,20 +162,7 @@ class GrokBot(discord.Client):
         print("GROK BOT: Command synchronization complete.")
         print(f"Registered {len(synced)} slash commands.")
 
-        if not btc_updates.is_running():
-            btc_updates.start()
-            print("GROK BOT: Automatic BTC updates started.")
 
-        # Start automatic 1-minute BTC reversal monitoring
-        if not btc_reversal_monitor.is_running():
-            btc_reversal_monitor.start()
-            print("GROK BOT: 1-minute reversal alerts activated.")
-
-
-        # Start automatic 1-minute BTC movement alerts
-        if not btc_movement_monitor.is_running():
-            btc_movement_monitor.start()
-            print("GROK BOT: 1-minute BTC movement alerts activated.")
         if not kalshi_live_monitor.is_running():
             kalshi_live_monitor.start()
             print("GROK BOT: Live Kalshi monitoring activated.")
