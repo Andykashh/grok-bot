@@ -2108,8 +2108,8 @@ async def kalshi_live_monitor():
 
                             await channel.send(embed=alert)
                             kalshi_alert_history.add(alert_key)
-                             # RECORD ALERT PERFORMANCE
-                             kalshi_performance.append({
+                            # RECORD ALERT PERFORMANCE
+                            kalshi_performance.append({
                                 "ticker": ticker,
                                 "alert": status,
                                 "timestamp": time.time(),
