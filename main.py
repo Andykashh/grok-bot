@@ -166,6 +166,10 @@ class GrokBot(discord.Client):
         if not kalshi_live_monitor.is_running():
             kalshi_live_monitor.start()
             print("GROK BOT: Live Kalshi monitoring activated.")
+
+        if not kalshi_settlement_monitor.is_running():
+            kalshi_settlement_monitor.start()
+            print("GROK BOT: Settlement monitoring activated.")
 bot = GrokBot()
 
 @bot.tree.command(
@@ -2026,6 +2030,30 @@ async def build_kalshi_analysis():
     return embed, ticker
 
 kalshi_alert_history = set()
+import os
+import json
+
+KALSHI_PERFORMANCE_FILE = os.path.join(
+    os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "."),
+    "kalshi_performance.json"
+)
+
+def load_kalshi_performance():
+    try:
+        with open(KALSHI_PERFORMANCE_FILE, "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return []
+
+def save_kalshi_performance():
+    temp_file = KALSHI_PERFORMANCE_FILE + ".tmp"
+
+    with open(temp_file, "w") as file:
+        json.dump(kalshi_performance, file, indent=4)
+
+    os.replace(temp_file, KALSHI_PERFORMANCE_FILE)
+
+kalshi_performance = load_kalshi_performance()
 @tasks.loop(seconds=3)
 async def kalshi_live_monitor():
     global kalshi_message
@@ -2080,6 +2108,23 @@ async def kalshi_live_monitor():
 
                             await channel.send(embed=alert)
                             kalshi_alert_history.add(alert_key)
+                             # RECORD ALERT PERFORMANCE
+                             kalshi_performance.append({
+                                "ticker": ticker,
+                                "alert": status,
+                                "timestamp": time.time(),
+                                "direction": (
+                                    "DOWN"
+                                    if status == "APPROACHING TARGET FROM ABOVE"
+                                    else "UP"
+                                ),
+                                "crossover": None,
+                                "crossover_time": None,
+                                "settlement": None,
+                                "result": "PENDING"
+                            })
+
+                            save_kalshi_performance()
         if (
             kalshi_message is None
             or ticker != kalshi_last_ticker
@@ -2095,7 +2140,7 @@ async def kalshi_live_monitor():
                 kalshi_message = await channel.send(
                     embed=embed
                 )
-
+        await check_kalshi_performance(embed, ticker)
         kalshi_last_ticker = ticker
 
         print("GROK BOT: Kalshi analysis updated.")
@@ -2108,7 +2153,111 @@ async def kalshi_live_monitor():
 async def before_kalshi_live_monitor():
     await bot.wait_until_ready()
 
+async def check_kalshi_performance(embed, ticker):
+    changed = False
+    now = time.time()
 
+    position = next(
+        (field.value for field in embed.fields
+         if field.name == "Current Position"),
+        ""
+    )
+
+    for record in kalshi_performance:
+        if record["result"] != "PENDING":
+            continue
+
+        if record["ticker"] == ticker:
+            direction = record["direction"]
+
+            crossed = (
+                direction == "UP"
+                and "UP - ABOVE TARGET" in position
+            ) or (
+                direction == "DOWN"
+                and "DOWN - BELOW TARGET" in position
+            )
+
+            if crossed and record["crossover"] is None:
+                record["crossover"] = True
+                record["crossover_time"] = round(
+                    now - record["timestamp"], 2
+                )
+                changed = True
+
+    if changed:
+        save_kalshi_performance()
+def get_kalshi_settlement(ticker):
+    url = (
+        "https://external-api.kalshi.com/"
+        f"trade-api/v2/markets/{ticker}"
+    )
+
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "GrokBot/1.0"}
+    )
+
+    with urllib.request.urlopen(
+        request, timeout=10
+    ) as response:
+        market = json.load(response)["market"]
+
+    if market.get("status") not in (
+        "finalized", "settled"
+    ):
+        return None
+
+    result = market.get("result")
+
+    if result == "yes":
+        return "UP"
+
+    if result == "no":
+        return "DOWN"
+
+    return None
+
+
+@tasks.loop(seconds=60)
+async def kalshi_settlement_monitor():
+    pending = {
+        record["ticker"]
+        for record in kalshi_performance
+        if record["result"] == "PENDING"
+    }
+
+    for ticker in pending:
+        try:
+            settlement = await asyncio.to_thread(
+                get_kalshi_settlement, ticker
+            )
+
+            if settlement is None:
+                continue
+
+            for record in kalshi_performance:
+                if (
+                    record["ticker"] == ticker
+                    and record["result"] == "PENDING"
+                ):
+                    record["settlement"] = settlement
+
+                    record["result"] = (
+                        "CORRECT"
+                        if record["direction"] == settlement
+                        else "INCORRECT"
+                    )
+
+            save_kalshi_performance()
+
+        except Exception as error:
+            print(f"Settlement error: {error!r}")
+
+
+@kalshi_settlement_monitor.before_loop
+async def before_kalshi_settlement_monitor():
+    await bot.wait_until_ready()
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN environment variable is missing")
 
