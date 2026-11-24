@@ -1697,7 +1697,7 @@ kalshi_last_ticker = None
 from collections import deque
 import statistics
 
-kalshi_price_history = deque(maxlen=180)
+kalshi_price_history = deque(maxlen=360)
 
 async def build_kalshi_analysis():
     markets, price = await asyncio.gather(
