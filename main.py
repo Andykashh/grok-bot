@@ -2025,7 +2025,7 @@ async def build_kalshi_analysis():
 
     return embed, ticker
 
-
+kalshi_alert_history = set()
 @tasks.loop(seconds=3)
 async def kalshi_live_monitor():
     global kalshi_message
@@ -2044,7 +2044,42 @@ async def kalshi_live_monitor():
             )
 
         embed, ticker = await build_kalshi_analysis()
+        # EARLY MOVEMENT ALERTS
+        if ticker:
+            for field in embed.fields:
+                if field.name == "EARLY MOMENTUM MONITOR":
+                    movement = field.value
 
+                    for status in (
+                        "APPROACHING TARGET FROM ABOVE",
+                        "APPROACHING TARGET FROM BELOW"
+                    ):
+                        alert_key = (ticker, status)
+
+                        if (
+                            status in movement
+                            and alert_key not in kalshi_alert_history
+                        ):
+                            alert = discord.Embed(
+                                title="GROK BOT | EARLY MOVEMENT ALERT",
+                                description=status,
+                                color=discord.Color.orange()
+                            )
+
+                            alert.add_field(
+                                name="Market",
+                                value=ticker,
+                                inline=False
+                            )
+
+                            alert.set_footer(
+                                text="Experimental observation | Not a confirmed crossover"
+                            )
+
+                            alert.timestamp = discord.utils.utcnow()
+
+                            await channel.send(embed=alert)
+                            kalshi_alert_history.add(alert_key)
         if (
             kalshi_message is None
             or ticker != kalshi_last_ticker
