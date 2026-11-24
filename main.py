@@ -1913,6 +1913,37 @@ async def build_kalshi_analysis():
         inline=False
     )
     quotes = get_kalshi_quotes(market)
+        # TARGET APPROACH MONITOR
+    approach = "COLLECTING DATA"
+
+    if change30 is not None and change60 is not None:
+        if difference > 0:
+            if change30 < 0 and change60 < 0:
+                approach = "APPROACHING TARGET FROM ABOVE"
+            elif change30 > 0 and change60 > 0:
+                approach = "MOVING AWAY ABOVE TARGET"
+            else:
+                approach = "MIXED MOMENTUM"
+
+        elif difference < 0:
+            if change30 > 0 and change60 > 0:
+                approach = "APPROACHING TARGET FROM BELOW"
+            elif change30 < 0 and change60 < 0:
+                approach = "MOVING AWAY BELOW TARGET"
+            else:
+                approach = "MIXED MOMENTUM"
+
+        else:
+            approach = "AT TARGET"
+
+    embed.add_field(
+        name="EARLY MOMENTUM MONITOR",
+        value=(
+            f"**{approach}**\n"
+            "Experimental observation"
+        ),
+        inline=False
+    )
     # UNIFIED KALSHI OUTLOOK
     unified = "UNCERTAIN"
     reason = "Waiting for indicator alignment"
