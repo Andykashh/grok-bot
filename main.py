@@ -437,7 +437,29 @@ def kalshi_price(market, side, price_type):
         return float(market[cents_key]) / 100
 
     return None
+def get_kalshi_quotes(market):
+    return {
+        "up_buy": kalshi_price(market, "yes", "ask"),
+        "up_sell": kalshi_price(market, "yes", "bid"),
+        "down_buy": kalshi_price(market, "no", "ask"),
+        "down_sell": kalshi_price(market, "no", "bid"),
+    }
 
+
+def format_kalshi_quote(value):
+    if value is None:
+        return "Unavailable"
+    return f"{value * 100:.1f}¢"
+
+
+def kalshi_exit_status(bid):
+    if bid is None:
+        return "QUOTE UNAVAILABLE"
+    if bid >= 0.80:
+        return "80¢ EXIT TARGET REACHED"
+    if bid >= 0.70:
+        return "70¢ EXIT TARGET REACHED"
+    return "BELOW EXIT TARGETS"
 @bot.tree.command(
     name="kalshi",
     description="View live Kalshi BTC 15-minute markets"
@@ -1840,7 +1862,7 @@ async def build_kalshi_analysis():
     moves = [
         (history[i][1] - history[i-1][1])
         for i in range(1, len(history))
-        if 5 <= history[i][0] - history[i-1][0] <= 20
+        if 2 <= history[i][0] - history[i-1][0] <= 20
     ]
 
     spike = "COLLECTING DATA"
@@ -1903,7 +1925,27 @@ async def build_kalshi_analysis():
         value=f"**{outlook}**\nUnvalidated momentum indicator",
         inline=False
     )
+    quotes = get_kalshi_quotes(market)
 
+    embed.add_field(
+        name="LIVE KALSHI CONTRACT PRICES",
+        value=(
+            f"UP Buy: {format_kalshi_quote(quotes['up_buy'])}\n"
+            f"UP Sell: {format_kalshi_quote(quotes['up_sell'])}\n"
+            f"DOWN Buy: {format_kalshi_quote(quotes['down_buy'])}\n"
+            f"DOWN Sell: {format_kalshi_quote(quotes['down_sell'])}"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="EXIT TARGET MONITOR",
+        value=(
+            f"UP: {kalshi_exit_status(quotes['up_sell'])}\n"
+            f"DOWN: {kalshi_exit_status(quotes['down_sell'])}"
+        ),
+        inline=False
+    )
     embed.set_footer(
         text="Coinbase price estimate | Not a settlement prediction"
     )
