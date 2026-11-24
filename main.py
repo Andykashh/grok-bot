@@ -1694,7 +1694,10 @@ from datetime import datetime
 
 kalshi_message = None
 kalshi_last_ticker = None
+from collections import deque
+import statistics
 
+kalshi_price_history = deque(maxlen=180)
 
 async def build_kalshi_analysis():
     markets, price = await asyncio.gather(
@@ -1803,6 +1806,104 @@ async def build_kalshi_analysis():
         inline=False
     )
 
+    # LIVE MOMENTUM AND SPIKE ENGINE
+    now = time.time()
+    kalshi_price_history.append((now, float(price)))
+
+    def price_change(seconds):
+        for ts, old_price in reversed(kalshi_price_history):
+            if ts <= now - seconds:
+                if now - ts > seconds + 20:
+                    return None
+                return price - old_price
+        return None
+
+    change30 = price_change(30)
+    change60 = price_change(60)
+    change180 = price_change(180)
+
+    def direction(change):
+        if change is None:
+            return "COLLECTING DATA"
+        if change > price * 0.0002:
+            return "BULLISH"
+        if change < -price * 0.0002:
+            return "BEARISH"
+        return "NEUTRAL"
+
+    def format_change(change):
+        if change is None:
+            return "COLLECTING DATA"
+        return f"{direction(change)} (${change:+,.2f})"
+
+    history = list(kalshi_price_history)
+    moves = [
+        (history[i][1] - history[i-1][1])
+        for i in range(1, len(history))
+        if 5 <= history[i][0] - history[i-1][0] <= 20
+    ]
+
+    spike = "COLLECTING DATA"
+    volatility = "COLLECTING DATA"
+    reversal = "COLLECTING DATA"
+    outlook = "UNCERTAIN"
+
+    if len(moves) >= 18:
+        baseline = statistics.stdev(moves[:-1])
+        threshold = max(baseline * 3, price * 0.0003)
+
+        spike = "NO SPIKE DETECTED"
+
+        if moves[-1] > threshold:
+            spike = "UPWARD SPIKE DETECTED"
+        elif moves[-1] < -threshold:
+            spike = "DOWNWARD SPIKE DETECTED"
+
+        recent_vol = statistics.stdev(moves[-6:])
+        volatility = (
+            "ELEVATED"
+            if recent_vol > max(baseline * 1.5, 0.01)
+            else "NORMAL"
+        )
+
+        reversal = "NO CLEAR REVERSAL"
+
+        if change30 is not None and change180 is not None:
+            if direction(change30) == "BULLISH" and direction(change180) == "BEARISH":
+                reversal = "POTENTIAL BULLISH REVERSAL"
+            elif direction(change30) == "BEARISH" and direction(change180) == "BULLISH":
+                reversal = "POTENTIAL BEARISH REVERSAL"
+
+        if change30 is not None and change60 is not None:
+            if direction(change30) == direction(change60):
+                outlook = direction(change30)
+
+    embed.add_field(
+        name="Live Momentum",
+        value=(
+            f"30s: {format_change(change30)}\n"
+            f"1m: {format_change(change60)}\n"
+            f"3m: {format_change(change180)}"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="Spike & Reversal Analysis",
+        value=(
+            f"Volatility: **{volatility}**\n"
+            f"Spike: **{spike}**\n"
+            f"Reversal: **{reversal}**"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="Short-Term Momentum Outlook",
+        value=f"**{outlook}**\nUnvalidated momentum indicator",
+        inline=False
+    )
+
     embed.set_footer(
         text="Coinbase price estimate | Not a settlement prediction"
     )
@@ -1812,7 +1913,7 @@ async def build_kalshi_analysis():
     return embed, ticker
 
 
-@tasks.loop(minutes=1)
+@tasks.loop(seconds=10)
 async def kalshi_live_monitor():
     global kalshi_message
     global kalshi_last_ticker
