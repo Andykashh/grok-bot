@@ -1913,7 +1913,60 @@ async def build_kalshi_analysis():
         inline=False
     )
     quotes = get_kalshi_quotes(market)
+    # UNIFIED KALSHI OUTLOOK
+    unified = "UNCERTAIN"
+    reason = "Waiting for indicator alignment"
 
+    up_buy = quotes["up_buy"]
+    down_buy = quotes["down_buy"]
+
+    if remaining <= 30:
+        reason = "Session nearing expiration"
+
+    elif any(x is None for x in (
+        change30, change60, change180,
+        up_buy, down_buy
+    )):
+        reason = "Collecting market data"
+
+    elif volatility != "NORMAL":
+        reason = "Volatility risk or insufficient data"
+
+    elif reversal != "NO CLEAR REVERSAL":
+        reason = "Possible trend reversal"
+
+    elif (
+        difference > 0
+        and direction(change30) == "BULLISH"
+        and direction(change60) == "BULLISH"
+        and direction(change180) == "BULLISH"
+        and up_buy > down_buy
+    ):
+        unified = "UP BIAS"
+        reason = "Price and momentum aligned"
+
+    elif (
+        difference < 0
+        and direction(change30) == "BEARISH"
+        and direction(change60) == "BEARISH"
+        and direction(change180) == "BEARISH"
+        and down_buy > up_buy
+    ):
+        unified = "DOWN BIAS"
+        reason = "Price and momentum aligned"
+
+    else:
+        reason = "Mixed or neutral indicators"
+
+    embed.add_field(
+        name="UNIFIED KALSHI OUTLOOK",
+        value=(
+            f"**{unified}**\n"
+            f"Reason: {reason}\n"
+            "Experimental - not backtested"
+        ),
+        inline=False
+    )
     embed.add_field(
         name="LIVE KALSHI CONTRACT PRICES",
         value=(
