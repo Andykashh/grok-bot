@@ -176,7 +176,9 @@ class GrokBot(discord.Client):
         if not btc_movement_monitor.is_running():
             btc_movement_monitor.start()
             print("GROK BOT: 1-minute BTC movement alerts activated.")
-
+        if not kalshi_live_monitor.is_running():
+            kalshi_live_monitor.start()
+            print("GROK BOT: Live Kalshi monitoring activated.")
 bot = GrokBot()
 
 @bot.tree.command(
@@ -1684,6 +1686,177 @@ async def btc_movement_monitor():
 
 @btc_movement_monitor.before_loop
 async def before_btc_movement_monitor():
+    await bot.wait_until_ready()
+
+# GROK BOT | LIVE KALSHI BTC MONITOR
+
+from datetime import datetime
+
+kalshi_message = None
+kalshi_last_ticker = None
+
+
+async def build_kalshi_analysis():
+    markets, price = await asyncio.gather(
+        asyncio.to_thread(get_kalshi_markets),
+        asyncio.to_thread(get_btc_price)
+    )
+
+    now = time.time()
+    active_markets = []
+
+    for market in markets:
+        try:
+            close_ts = datetime.fromisoformat(
+                market["close_time"].replace("Z", "+00:00")
+            ).timestamp()
+
+            open_ts = datetime.fromisoformat(
+                market["open_time"].replace("Z", "+00:00")
+            ).timestamp()
+
+            if open_ts <= now < close_ts:
+                active_markets.append((close_ts, market))
+
+        except (KeyError, ValueError, TypeError):
+            continue
+
+    if not active_markets:
+        return discord.Embed(
+            title="GROK BOT | KALSHI BTC",
+            description="Waiting for an active BTC market.",
+            color=discord.Color.orange()
+        ), None
+
+    close_ts, market = min(
+        active_markets,
+        key=lambda item: item[0]
+    )
+
+    ticker = market["ticker"]
+    target = market.get("floor_strike")
+
+    if target is None:
+        return discord.Embed(
+            title="GROK BOT | KALSHI BTC",
+            description="Waiting for Kalshi target price.",
+            color=discord.Color.orange()
+        ), ticker
+
+    target = float(target)
+    difference = price - target
+
+    remaining = max(0, int(close_ts - time.time()))
+
+    minutes, seconds = divmod(remaining, 60)
+
+    if difference > 0:
+        position = "UP - ABOVE TARGET"
+        color = discord.Color.green()
+
+    elif difference < 0:
+        position = "DOWN - BELOW TARGET"
+        color = discord.Color.red()
+
+    else:
+        position = "AT TARGET"
+        color = discord.Color.orange()
+
+    embed = discord.Embed(
+        title="GROK BOT | LIVE KALSHI BTC",
+        color=color
+    )
+
+    embed.add_field(
+        name="Kalshi Target Price",
+        value=f"${target:,.2f}",
+        inline=True
+    )
+
+    embed.add_field(
+        name="Coinbase BTC Price",
+        value=f"${price:,.2f}",
+        inline=True
+    )
+
+    embed.add_field(
+        name="Distance From Target",
+        value=f"${difference:+,.2f}",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Time Remaining Until Close",
+        value=f"{minutes}m {seconds}s",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Current Position",
+        value=f"**{position}**",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Market Ticker",
+        value=f"`{ticker}`",
+        inline=False
+    )
+
+    embed.set_footer(
+        text="Coinbase price estimate | Not a settlement prediction"
+    )
+
+    embed.timestamp = discord.utils.utcnow()
+
+    return embed, ticker
+
+
+@tasks.loop(minutes=1)
+async def kalshi_live_monitor():
+    global kalshi_message
+    global kalshi_last_ticker
+
+    try:
+        if not CHANNEL_ID:
+            print("Kalshi monitor: CHANNEL_ID missing")
+            return
+
+        channel = bot.get_channel(int(CHANNEL_ID))
+
+        if channel is None:
+            channel = await bot.fetch_channel(
+                int(CHANNEL_ID)
+            )
+
+        embed, ticker = await build_kalshi_analysis()
+
+        if (
+            kalshi_message is None
+            or ticker != kalshi_last_ticker
+        ):
+            kalshi_message = await channel.send(
+                embed=embed
+            )
+
+        else:
+            try:
+                await kalshi_message.edit(embed=embed)
+            except discord.NotFound:
+                kalshi_message = await channel.send(
+                    embed=embed
+                )
+
+        kalshi_last_ticker = ticker
+
+        print("GROK BOT: Kalshi analysis updated.")
+
+    except Exception as error:
+        print(f"Kalshi live monitor error: {error!r}")
+
+
+@kalshi_live_monitor.before_loop
+async def before_kalshi_live_monitor():
     await bot.wait_until_ready()
 
 
