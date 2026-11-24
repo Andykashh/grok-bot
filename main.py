@@ -1913,7 +1913,7 @@ async def build_kalshi_analysis():
     return embed, ticker
 
 
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=3)
 async def kalshi_live_monitor():
     global kalshi_message
     global kalshi_last_ticker
